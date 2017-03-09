@@ -235,6 +235,11 @@ void LiveScanClient::UpdateFrame()
 	else
 		ProcessDepth(pCapture->pDepth, pCapture->nDepthFrameWidth, pCapture->nDepthFrameHeight);
 
+	if (m_bGenerateMesh)
+	{
+
+	}
+
 	ShowFPS();
 }
 

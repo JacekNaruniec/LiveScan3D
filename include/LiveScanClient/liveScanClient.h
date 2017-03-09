@@ -54,6 +54,7 @@ private:
 	bool m_bConfirmCalibrated;
 	bool m_bShowDepth;
 	bool m_bFrameCompression;
+	bool m_bGenerateMesh;
 	int m_iCompressionLevel;
 
 	FrameFileWriterReader m_framesFileWriterReader;

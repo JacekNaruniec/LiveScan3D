@@ -20,6 +20,7 @@
     <ClInclude Include="..\include\LiveScanClient\kinectCapture.h" />
     <ClInclude Include="..\include\LiveScanClient\liveScanClient.h" />
     <ClInclude Include="..\include\LiveScanClient\marker.h" />
+    <ClInclude Include="..\include\LiveScanClient\meshGenerator.h" />
     <ClInclude Include="..\include\LiveScanClient\utils.h" />
     <ClInclude Include="..\include\nanoflann.h" />
     <ClInclude Include="..\include\socketCS.h" />
@@ -36,6 +37,7 @@
     <ClCompile Include="..\src\LiveScanClient\kinectCapture.cpp" />
     <ClCompile Include="..\src\LiveScanClient\liveScanClient.cpp" />
     <ClCompile Include="..\src\LiveScanClient\marker.cpp" />
+    <ClCompile Include="..\src\LiveScanClient\meshGenerator.cpp" />
     <ClCompile Include="..\src\LiveScanClient\utils.cpp" />
     <ClCompile Include="..\src\socketCS.cpp" />
   </ItemGroup>
