@@ -48,6 +48,13 @@ public:
 	int nColorFrameHeight, nColorFrameWidth;
 	int nDepthFrameHeight, nDepthFrameWidth;
 
+	CameraIntrinsics sCameraIntrinsics; 
+
+	bool bFilterFlyingPixels;
+	int iFPThreshold;
+	int iFPMaxNonFittingNeighbours;
+	int iFPNeighbourhoodSize;
+
 	UINT16 *pDepth;
 	BYTE *pBodyIndex;
 	RGB *pColorRGBX;

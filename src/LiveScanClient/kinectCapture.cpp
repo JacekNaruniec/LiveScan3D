@@ -14,6 +14,7 @@
 //    }
 #include "KinectCapture.h"
 #include <chrono>
+#include <vector>
 
 KinectCapture::KinectCapture()
 {
@@ -40,6 +41,7 @@ bool KinectCapture::Initialize()
 		return bInitialized;
 	}
 
+
 	if (pKinectSensor)
 	{
 		pKinectSensor->get_CoordinateMapper(&pCoordinateMapper);
@@ -57,6 +59,8 @@ bool KinectCapture::Initialize()
 
 	bInitialized = SUCCEEDED(hr);
 
+
+
 	if (bInitialized)
 	{
 		std::chrono::time_point<std::chrono::system_clock> start = std::chrono::system_clock::now();
@@ -73,9 +77,100 @@ bool KinectCapture::Initialize()
 			}
 
 		} while (!bTemp);
+
+		pCoordinateMapper->GetDepthCameraIntrinsics(&sCameraIntrinsics);
 	}
 
+
 	return bInitialized;
+}
+
+/*
+void KinectCapture::filterFlyingPixels(int neighbourhoodSize, float thr)
+{
+	int nDepthPixels = nDepthFrameWidth * nDepthFrameHeight;
+	int nNeighbours = (neighbourhoodSize * 2 + 1) * (neighbourhoodSize * 2 + 1) - 1;
+	std::vector<int> shifts(nNeighbours);
+	int *pshifts = shifts.data();
+	int shift_n = 0;
+
+	for (int x=-neighbourhoodSize; x <= neighbourhoodSize; x++)
+		for (int y = -neighbourhoodSize; y <= neighbourhoodSize; y++)
+		{
+			if (x == 0 && y == 0)
+				continue; 
+
+			shifts[shift_n] = x * nDepthFrameWidth + y;
+			shift_n++;
+		}
+
+	std::vector<int> indexesToRemove;
+	for (int y = neighbourhoodSize; y < nDepthFrameHeight - neighbourhoodSize; y++)
+	{
+		int rowPos = y*nDepthFrameWidth;
+		UINT16 *rowPtr = pDepth + rowPos;
+		for (int x = neighbourhoodSize; x < nDepthFrameWidth - neighbourhoodSize; x++)
+		{
+			int sum = 0;
+			UINT16 val = rowPtr[x];
+
+			for (int shift = 0; shift < nNeighbours; shift++)
+				sum += abs(val - rowPtr[x + shifts[shift]]);
+
+			sum /= nNeighbours;
+
+			if (sum > thr)
+				indexesToRemove.push_back(rowPos + x);
+		}
+	}
+
+	for (size_t i = 0; i < indexesToRemove.size(); i++)
+		pDepth[indexesToRemove[i]] = 0;
+}
+*/
+
+void KinectCapture::filterFlyingPixels(int neighbourhoodSize, float thr, int maxNonFittingNeighbours)
+{
+	int nDepthPixels = nDepthFrameWidth * nDepthFrameHeight;
+	int nNeighbours = (neighbourhoodSize * 2 + 1) * (neighbourhoodSize * 2 + 1) - 1;
+	std::vector<int> shifts(nNeighbours);
+	int *pshifts = shifts.data();
+	int shift_n = 0;
+
+	for (int x = -neighbourhoodSize; x <= neighbourhoodSize; x++)
+		for (int y = -neighbourhoodSize; y <= neighbourhoodSize; y++)
+		{
+			if (x == 0 && y == 0)
+				continue;
+
+			shifts[shift_n] = x * nDepthFrameWidth + y;
+			shift_n++;
+		}
+
+	maxNonFittingNeighbours = nNeighbours / 2;
+
+	std::vector<int> indexesToRemove;
+	for (int y = neighbourhoodSize; y < nDepthFrameHeight - neighbourhoodSize; y++)
+	{
+		int rowPos = y*nDepthFrameWidth;
+		UINT16 *rowPtr = pDepth + rowPos;
+		for (int x = neighbourhoodSize; x < nDepthFrameWidth - neighbourhoodSize; x++)
+		{
+			int val = rowPtr[x];
+			int n_diff = 0;
+			for (int shift = 0; shift < nNeighbours; shift++)
+			{
+				int diff = abs(rowPtr[x + shifts[shift]] - val);
+				if (diff > thr)
+					n_diff++;
+			}
+			if (n_diff > maxNonFittingNeighbours)
+				indexesToRemove.push_back(rowPos + x);
+		}
+	}
+
+	for (size_t i = 0; i < indexesToRemove.size(); i++)
+		pDepth[indexesToRemove[i]] = 0;
 }
 
 bool KinectCapture::AcquireFrame()
@@ -99,6 +194,9 @@ bool KinectCapture::AcquireFrame()
 	GetBodyFrame(pMultiFrame);
 	GetBodyIndexFrame(pMultiFrame);
 
+	if (bFilterFlyingPixels)
+		filterFlyingPixels(iFPNeighbourhoodSize, iFPThreshold, iFPMaxNonFittingNeighbours);
+
 	SafeRelease(pMultiFrame);
 
 	return true;
@@ -107,6 +205,27 @@ bool KinectCapture::AcquireFrame()
 void KinectCapture::MapDepthFrameToCameraSpace(Point3f *pCameraSpacePoints)
 {
 	pCoordinateMapper->MapDepthFrameToCameraSpace(nDepthFrameWidth * nDepthFrameHeight, pDepth, nDepthFrameWidth * nDepthFrameHeight, (CameraSpacePoint*)pCameraSpacePoints);
+
+	/*
+	for (int i = 0; i<nDepthFrameWidth * nDepthFrameHeight; i++)
+		if (pDepth[i] != 0)
+		{
+			float val = pDepth[i];
+			float x = i % nDepthFrameWidth;
+			int y = sCameraIntrinsics.PrincipalPointY*2 - i / nDepthFrameWidth;
+			float Z = val / 1000;
+
+			double X = (x - sCameraIntrinsics.PrincipalPointX) / sCameraIntrinsics.FocalLengthX;
+			double Y = (y - sCameraIntrinsics.PrincipalPointY) / sCameraIntrinsics.FocalLengthY;
+			double r = X*X + Y*Y;
+			
+			double d = (1.0 - r*sCameraIntrinsics.RadialDistortionSecondOrder - r*r * sCameraIntrinsics.RadialDistortionFourthOrder -
+				r*r*r*sCameraIntrinsics.RadialDistortionSixthOrder);
+			
+			X = d * X * Z; 
+			Y = d * Y * Z;		
+		}
+	*/
 }
 
 void KinectCapture::MapColorFrameToCameraSpace(Point3f *pCameraSpacePoints)

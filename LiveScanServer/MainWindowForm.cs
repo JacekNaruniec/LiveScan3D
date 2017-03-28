@@ -53,6 +53,8 @@ namespace KinectServer
         List<AffineTransform> lAllCameraPoses = new List<AffineTransform>();
         //Body data from all of the sensors
         List<Body> lAllBodies = new List<Body>();
+        //Triangles data from all of the sensors
+        List<int> lAllTriangles = new List<int>();
 
         bool bServerRunning = false;
         bool bRecording = false;
@@ -169,6 +171,7 @@ namespace KinectServer
             //The variables below are shared between this class and the OpenGLWindow.
             lock (lAllVertices)
             {
+                oOpenGLWindow.triangles = lAllTriangles;
                 oOpenGLWindow.vertices = lAllVertices;
                 oOpenGLWindow.colors = lAllColors;
                 oOpenGLWindow.cameraPoses = lAllCameraPoses;
@@ -258,12 +261,12 @@ namespace KinectServer
             List<List<byte>> lFramesRGB = new List<List<byte>>();
             List<List<Single>> lFramesVerts = new List<List<Single>>();
             List<List<Body>> lFramesBody = new List<List<Body>>();
-
+            List<List<int>> lFramesTriangles = new List<List<int>>();
             BackgroundWorker worker = (BackgroundWorker)sender;
             while (!worker.CancellationPending)
             {
                 Thread.Sleep(1);
-                oServer.GetLatestFrame(lFramesRGB, lFramesVerts, lFramesBody);
+                oServer.GetLatestFrame(lFramesRGB, lFramesVerts, lFramesBody, lFramesTriangles);
 
                 //Update the vertex and color lists that are common between this class and the OpenGLWindow.
                 lock (lAllVertices)
@@ -272,12 +275,26 @@ namespace KinectServer
                     lAllColors.Clear();
                     lAllBodies.Clear();
                     lAllCameraPoses.Clear();
+                    lAllTriangles.Clear();
 
+
+                    int TotalVerticesCount = 0;
+                    int TotalTrianglesElementsCount = 0;
+                    int ActTotalTrianglesElementsCount = 0;
                     for (int i = 0; i < lFramesRGB.Count; i++)
                     {
                         lAllVertices.AddRange(lFramesVerts[i]);
                         lAllColors.AddRange(lFramesRGB[i]);
-                        lAllBodies.AddRange(lFramesBody[i]);                       
+                        lAllBodies.AddRange(lFramesBody[i]);
+                        lAllTriangles.AddRange(lFramesTriangles[i]);
+
+
+                        ActTotalTrianglesElementsCount = lAllTriangles.Count;
+                        for (int v = TotalTrianglesElementsCount; v < ActTotalTrianglesElementsCount; v++)
+                            lAllTriangles[v] += TotalVerticesCount / 3;
+
+                        TotalTrianglesElementsCount = lAllTriangles.Count;
+                        TotalVerticesCount = lAllVertices.Count;           
                     }
 
                     lAllCameraPoses.AddRange(oServer.lCameraPoses);
@@ -302,7 +319,8 @@ namespace KinectServer
             List<List<float>> lAllFrameVertices = new List<List<float>>();
             List<List<byte>> lAllFrameColors = new List<List<byte>>();
             List<List<Body>> lAllFrameBody = new List<List<Body>>();
-            oServer.GetLatestFrame(lAllFrameColors, lAllFrameVertices, lAllFrameBody);
+            List<List<int>> lAllFrameTriangles = new List<List<int>>();
+            oServer.GetLatestFrame(lAllFrameColors, lAllFrameVertices, lAllFrameBody, lAllFrameTriangles);
 
             //Initialize containers for the poses.
             List<float[]> Rs = new List<float[]>();

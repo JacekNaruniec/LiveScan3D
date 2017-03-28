@@ -42,7 +42,8 @@ namespace KinectServer
 
         public List<byte> lFrameRGB = new List<byte>();
         public List<Single> lFrameVerts = new List<Single>();
-        public List<Body> lBodies = new List<Body>(); 
+        public List<Body> lBodies = new List<Body>();
+        public List<int> lTriangles = new List<int>();
 
         public event SocketChangedHandler eChanged;
 
@@ -153,6 +154,7 @@ namespace KinectServer
             lFrameRGB.Clear();
             lFrameVerts.Clear();
             lBodies.Clear();
+            lTriangles.Clear();
 
             int nToRead;
             byte[] buffer = new byte[1024];
@@ -254,6 +256,17 @@ namespace KinectServer
                 }
 
                 lBodies.Add(tempBody);
+            }
+
+            // recieve triangles
+            int nTriangles = BitConverter.ToInt32(buffer, startIdx);
+            startIdx += 4;
+
+            for (int i = 0; i < nTriangles * 3; i++)
+            {
+                int v = BitConverter.ToInt32(buffer, startIdx);
+                lTriangles.Add(v);
+                startIdx += 4;
             }
         }
 

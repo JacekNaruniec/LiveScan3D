@@ -33,10 +33,12 @@ vector<KNNeighborsResult> KNNeighbors(PointCloud &cloud, kdTree &tree, int k)
 	return result;
 }
 
-void filter(std::vector<Point3f> &vertices, std::vector<RGB> &colors, int k, float maxDist)
+unordered_map<int, int> filter(std::vector<Point3f> &vertices, std::vector<RGB> &colors, int k, float maxDist)
 {
+	unordered_map<int, int> changedVerticesMap;
+	changedVerticesMap[-1] = -1;
 	if (k <= 0 || maxDist <= 0)
-		return;
+		return changedVerticesMap;
 
 	PointCloud cloud;
 	cloud.pts = vertices;
@@ -61,15 +63,19 @@ void filter(std::vector<Point3f> &vertices, std::vector<RGB> &colors, int k, flo
 	{
 		if (idxToCheck < indicesToRemove.size() && i == indicesToRemove[idxToCheck])
 		{
+			changedVerticesMap[i] = -1;
 			idxToCheck++;
 			continue;
 		}
+
 		vertices[lastElemIdx] = vertices[i];
 		colors[lastElemIdx] = colors[i];
-
+		changedVerticesMap[i] = lastElemIdx;
 		lastElemIdx++;
 	}
 
 	vertices.resize(lastElemIdx);
 	colors.resize(lastElemIdx);
+
+	return changedVerticesMap;
 }

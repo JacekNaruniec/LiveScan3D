@@ -37,6 +37,7 @@ namespace KinectServer
     {
         int PointCount;
         int LineCount;
+        int TriangleCount;
 
         VertexC4ubV3f[] VBO;
         float PointSize = 0.0f;
@@ -66,7 +67,9 @@ namespace KinectServer
         public List<byte> colors = new List<byte>();
         public List<AffineTransform> cameraPoses = new List<AffineTransform>();
         public List<Body> bodies = new List<Body>();
+        public List<int> triangles = new List<int>();
         public KinectSettings settings = new KinectSettings();
+
 
         DateTime tFPSUpdateTimer = DateTime.Now;
         int nTickCounter = 0;
@@ -199,7 +202,8 @@ namespace KinectServer
 
             PointCount = 0;
             LineCount = 12;
-            VBO = new VertexC4ubV3f[PointCount + 2 * LineCount];
+            TriangleCount = 0;
+            VBO = new VertexC4ubV3f[PointCount + 2 * LineCount + 3 * TriangleCount];
         }
 
         protected override void OnUnload(EventArgs e)
@@ -323,12 +327,15 @@ namespace KinectServer
             }
 
 
-            lock (vertices)
+            lock (vertices)     // TODO: JN shouldn't it be locked on some lock object, vertices can change?
             {
                 bool bShowSkeletons = settings.bShowSkeletons;
 
                 PointCount = vertices.Count / 3;
                 LineCount = 0;
+                TriangleCount = triangles.Count / 3;
+
+
                 if (bDrawMarkings)
                 {
                     //bounding box
@@ -341,7 +348,7 @@ namespace KinectServer
                         LineCount += 24 * bodies.Count;
                 }
 
-                VBO = new VertexC4ubV3f[PointCount + 2 * LineCount];
+                VBO = new VertexC4ubV3f[PointCount + 2 * LineCount + 3 * TriangleCount];
 
                 for (int i = 0; i < PointCount; i++)
                 {
@@ -353,7 +360,7 @@ namespace KinectServer
                     VBO[i].Position.Y = vertices[i * 3 + 1];
                     VBO[i].Position.Z = vertices[i * 3 + 2];
                 }
-
+                
                 if (bDrawMarkings)
                 {
                     int iCurLineCount = 0;
@@ -369,6 +376,9 @@ namespace KinectServer
                     if (bShowSkeletons)
                         iCurLineCount += AddBodies(PointCount + 2 * iCurLineCount);
                 }
+
+                AddTriangles(PointCount + 2 * LineCount);
+
             }
         }
 
@@ -389,16 +399,35 @@ namespace KinectServer
 
             // Tell OpenGL to discard old VBO when done drawing it and reserve memory _now_ for a new buffer.
             // without this, GL would wait until draw operations on old VBO are complete before writing to it
-            GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(VertexC4ubV3f.SizeInBytes * (PointCount + 2 * LineCount)), IntPtr.Zero, BufferUsageHint.StreamDraw);
+            GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(VertexC4ubV3f.SizeInBytes * (PointCount + 2 * LineCount + 3 *TriangleCount)), IntPtr.Zero, BufferUsageHint.StreamDraw);
+            
             // Fill newly allocated buffer
-            GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(VertexC4ubV3f.SizeInBytes * (PointCount + 2 * LineCount)), VBO, BufferUsageHint.StreamDraw);
+            GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(VertexC4ubV3f.SizeInBytes * (PointCount + 2 * LineCount + 3 * TriangleCount)), VBO, BufferUsageHint.StreamDraw);
 
             GL.DrawArrays(BeginMode.Points, 0, PointCount);
             GL.DrawArrays(BeginMode.Lines, PointCount, 2 * LineCount);
+            GL.DrawArrays(BeginMode.Triangles, PointCount + 2 *LineCount, 3 * TriangleCount);
 
             GL.PopMatrix();
 
             SwapBuffers();
+        }
+
+        private void AddTriangles(int startIdx)
+        {
+            int endIdx = startIdx + TriangleCount * 3;
+            for (int i = startIdx; i < endIdx; i++)
+            {
+                int v = triangles[i - startIdx];
+                VBO[i].Position.X = vertices[3 * v];
+                VBO[i].Position.Y = vertices[3 * v + 1];
+                VBO[i].Position.Z = vertices[3 * v + 2];
+
+                VBO[i].R = colors[v * 3];
+                VBO[i].G = colors[v * 3 + 1];
+                VBO[i].B = colors[v * 3 + 2];
+                VBO[i].A = 255;
+            }      
         }
 
         private int AddBoundingBox(int startIdx)
@@ -602,7 +631,7 @@ namespace KinectServer
         {
             int nLinesToAdd = 24 * bodies.Count;
             int nPointsToAdd = nLinesToAdd * 2;
-
+            
             for (int i = startIdx; i < startIdx + nPointsToAdd; i++)
             {
                 VBO[i].R = 0;

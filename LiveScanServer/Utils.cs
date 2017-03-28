@@ -32,6 +32,13 @@ namespace KinectServer
         public float Z;
     }
 
+/*    public struct Triangle
+    {
+        public int v1;
+        public int v2;
+        public int v3;
+    }
+*/
     [Serializable]
     public class AffineTransform
     {

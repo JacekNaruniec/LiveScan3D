@@ -31,6 +31,11 @@ namespace KinectServer
         public int nFilterNeighbors = 10;
         public float fFilterThreshold = 0.1f;
 
+        public bool bFilterFlyingPixels = true;
+        public int nFPThreshold = 20;
+        public int nFPMaxNonFittingNeighbours = 4;
+        public int nFPNeighbourhoodSize = 1;
+
         public BindingList<MarkerPose> lMarkerPoses = new BindingList<MarkerPose>();
 
         public bool bStreamOnlyBodies = false;
@@ -73,6 +78,20 @@ namespace KinectServer
             lData.AddRange(bTemp);
 
             bTemp = BitConverter.GetBytes(fFilterThreshold);
+            lData.AddRange(bTemp);
+
+            if (bFilterFlyingPixels)
+                lData.Add(1);
+            else
+                lData.Add(0);
+
+            bTemp = BitConverter.GetBytes(nFPThreshold);
+            lData.AddRange(bTemp);
+
+            bTemp = BitConverter.GetBytes(nFPMaxNonFittingNeighbours);
+            lData.AddRange(bTemp);
+
+            bTemp = BitConverter.GetBytes(nFPNeighbourhoodSize);
             lData.AddRange(bTemp);
 
             bTemp = BitConverter.GetBytes(lMarkerPoses.Count);

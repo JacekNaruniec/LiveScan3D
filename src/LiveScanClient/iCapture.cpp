@@ -22,6 +22,7 @@ ICapture::ICapture()
 	nColorFrameWidth = 0;
 	nDepthFrameHeight = 0;
 	nDepthFrameWidth = 0;
+	bFilterFlyingPixels = true;
 
 	pDepth = NULL;
 	pColorRGBX = NULL;

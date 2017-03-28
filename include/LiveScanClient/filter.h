@@ -18,6 +18,8 @@
 
 #include "nanoflann.h"
 #include "utils.h"
+#include <unordered_map>
+
 
 struct KNNeighborsResult
 {
@@ -59,4 +61,4 @@ struct PointCloud
 
 typedef nanoflann::KDTreeSingleIndexAdaptor<nanoflann::L2_Simple_Adaptor<float, PointCloud>, PointCloud, 3> kdTree;
 
-void filter(std::vector<Point3f> &vertices, std::vector<RGB> &colors, int k = 10, float maxDist = 0.01);
+std::unordered_map<int, int> filter(std::vector<Point3f> &vertices, std::vector<RGB> &colors, int k = 10, float maxDist = 0.01);

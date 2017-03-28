@@ -14,6 +14,9 @@
 //    }
 #pragma once
 
+#include <thread>
+#include <mutex>
+
 #include "resource.h"
 #include "ImageRenderer.h"
 #include "SocketCS.h"
@@ -21,8 +24,7 @@
 #include "utils.h"
 #include "KinectCapture.h"
 #include "frameFileWriterReader.h"
-#include <thread>
-#include <mutex>
+#include "meshGenerator.h"
 
 class LiveScanClient
 {
@@ -42,6 +44,12 @@ private:
 	bool m_bCalibrate;
 	bool m_bFilter;
 	bool m_bStreamOnlyBodies;
+
+	bool m_bFilterFlyingPixels;
+    int m_iFPThreshold;
+	int m_iFPMaxNonFittingNeighbours;
+	int m_iFPNeighbourhoodSize;
+
 
 	ICapture *pCapture;
 
@@ -67,6 +75,10 @@ private:
 	std::vector<RGB> m_vLastFrameRGB;
 	std::vector<Body> m_vLastFrameBody;
 
+	std::vector<int> m_vDepthIndicesToVerticesMap;
+
+	std::vector<TriangleIndexes> m_vLastFrameTriangleIndexes; 
+
 	HWND m_hWnd;
     INT64 m_nLastCounter;
     double m_fFreq;
@@ -76,6 +88,7 @@ private:
 	Point3f* m_pCameraSpaceCoordinates;
 	Point2f* m_pColorCoordinatesOfDepth;
 	Point2f* m_pDepthCoordinatesOfColor;
+
 
     // Direct2D
     ImageRenderer* m_pDrawColor;
@@ -89,10 +102,11 @@ private:
     bool SetStatusMessage(_In_z_ WCHAR* szMessage, DWORD nShowTimeMsec, bool bForce);
 
 	void HandleSocket();
-	void SendFrame(vector<Point3s> vertices, vector<RGB> RGB, vector<Body> body);
+	void SendFrame(vector<Point3s> vertices, vector<RGB> RGB, vector<Body> body, vector<TriangleIndexes> triangles);
 
 	void SocketThreadFunction();
-	void StoreFrame(Point3f *vertices, Point2f *mapping, RGB *color, vector<Body> &bodies, BYTE* bodyIndex);
+	void StoreEligibleVerticesWithColorAndBody(Point3f *vertices, Point2f *mapping, RGB *color, vector<Body> &bodies, BYTE* bodyIndex);
+
 	void ShowFPS();
 	void ReadIPFromFile();
 	void WriteIPToFile();

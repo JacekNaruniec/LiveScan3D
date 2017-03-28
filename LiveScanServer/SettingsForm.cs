@@ -45,6 +45,11 @@ namespace KinectServer
             txtMaxY.Text = oSettings.aMaxBounds[1].ToString(CultureInfo.InvariantCulture);
             txtMaxZ.Text = oSettings.aMaxBounds[2].ToString(CultureInfo.InvariantCulture);
 
+            cbFilterFlyingPixels.Checked = oSettings.bFilterFlyingPixels;
+            txtFPFilteringNeighbourhood.Text = oSettings.nFPNeighbourhoodSize.ToString();
+            txtFPMaxDistance.Text = oSettings.nFPThreshold.ToString();
+            txtFPNMaxNonFitting.Text = oSettings.nFPMaxNonFittingNeighbours.ToString();
+
             chFilter.Checked = oSettings.bFilter;
             txtFilterNeighbors.Text = oSettings.nFilterNeighbors.ToString();
             txtFilterDistance.Text = oSettings.fFilterThreshold.ToString(CultureInfo.InvariantCulture);
@@ -333,6 +338,30 @@ namespace KinectServer
                 if (!tryParse)
                     oSettings.iCompressionLevel = 0;
             }
+            UpdateClients();
+        }
+
+        private void cbFilterFlyingPixels_CheckedChanged(object sender, EventArgs e)
+        {
+            oSettings.bFilterFlyingPixels = cbFilterFlyingPixels.Checked;
+            UpdateClients();
+        }
+
+        private void txtFPMaxDistance_TextChanged(object sender, EventArgs e)
+        {
+            int.TryParse(txtFPMaxDistance.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out oSettings.nFPThreshold);
+            UpdateClients();
+        }
+
+        private void txtFPNMaxNonFitting_TextChanged(object sender, EventArgs e)
+        {
+            int.TryParse(txtFPNMaxNonFitting.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out oSettings.nFPMaxNonFittingNeighbours);
+            UpdateClients();
+        }
+
+        private void txtFPFilteringNeighbourhood_TextChanged(object sender, EventArgs e)
+        {
+            int.TryParse(txtFPFilteringNeighbourhood.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out oSettings.nFPNeighbourhoodSize);
             UpdateClients();
         }
     }

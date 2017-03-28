@@ -36,6 +36,7 @@ private:
 	IKinectSensor* pKinectSensor;
 	IMultiSourceFrameReader* pMultiSourceFrameReader;
 
+	void filterFlyingPixels(int neighbourhoodSize, float thr, int maxNonFittingNeighbours);
 	void GetDepthFrame(IMultiSourceFrame* pMultiFrame);
 	void GetColorFrame(IMultiSourceFrame* pMultiFrame);
 	void GetBodyFrame(IMultiSourceFrame* pMultiFrame);

@@ -286,11 +286,12 @@ namespace KinectServer
                 return true;
         }
 
-        public void GetLatestFrame(List<List<byte>> lFramesRGB, List<List<Single>> lFramesVerts, List<List<Body>> lFramesBody)
+        public void GetLatestFrame(List<List<byte>> lFramesRGB, List<List<Single>> lFramesVerts, List<List<Body>> lFramesBody, List<List<int>> lFramesTriagles)
         {
             lFramesRGB.Clear();
             lFramesVerts.Clear();
             lFramesBody.Clear();
+            lFramesTriagles.Clear();
 
             lock (oFrameRequestLock)
             {
@@ -303,6 +304,7 @@ namespace KinectServer
 
                 //Wait till frames received
                 bool allGathered = false;
+
                 while (!allGathered)
                 {
                     allGathered = true;
@@ -318,17 +320,18 @@ namespace KinectServer
                             }
                         }
                     }
-                }
 
-                //Store received frames
-                lock (oClientSocketLock)
+                }
+            }
+            //Store received frames
+            lock (oClientSocketLock)
+            {
+                for (int i = 0; i < lClientSockets.Count; i++)
                 {
-                    for (int i = 0; i < lClientSockets.Count; i++)
-                    {
-                        lFramesRGB.Add(new List<byte>(lClientSockets[i].lFrameRGB));
-                        lFramesVerts.Add(new List<Single>(lClientSockets[i].lFrameVerts));
-                        lFramesBody.Add(new List<Body>(lClientSockets[i].lBodies));
-                    }
+                    lFramesRGB.Add(new List<byte>(lClientSockets[i].lFrameRGB));
+                    lFramesVerts.Add(new List<Single>(lClientSockets[i].lFrameVerts));
+                    lFramesBody.Add(new List<Body>(lClientSockets[i].lBodies));
+                    lFramesTriagles.Add(new List<int>(lClientSockets[i].lTriangles));
                 }
             }
         }

@@ -38,13 +38,13 @@ int APIENTRY wWinMain(
 }
 
 LiveScanClient::LiveScanClient() :
-    m_hWnd(NULL),
-    m_nLastCounter(0),
-    m_nFramesSinceUpdate(0),
-    m_fFreq(0),
-    m_nNextStatusTime(0LL),
-    m_pD2DFactory(NULL),
-    m_pDrawColor(NULL),
+	m_hWnd(NULL),
+	m_nLastCounter(0),
+	m_nFramesSinceUpdate(0),
+	m_fFreq(0),
+	m_nNextStatusTime(0LL),
+	m_pD2DFactory(NULL),
+	m_pDrawColor(NULL),
 	m_pDepthRGBX(NULL),
 	m_pCameraSpaceCoordinates(NULL),
 	m_pColorCoordinatesOfDepth(NULL),
@@ -62,7 +62,11 @@ LiveScanClient::LiveScanClient() :
 	m_iCompressionLevel(2),
 	m_pClientSocket(NULL),
 	m_nFilterNeighbors(10),
-	m_fFilterThreshold(0.01f)
+	m_fFilterThreshold(0.01f),
+	m_bFilterFlyingPixels(true),
+	m_iFPMaxNonFittingNeighbours(4),
+	m_iFPNeighbourhoodSize(1),
+	m_iFPThreshold(20)
 {
 	pCapture = new KinectCapture();
 
@@ -194,6 +198,11 @@ void LiveScanClient::UpdateFrame()
 		return;
 	}
 
+	pCapture->bFilterFlyingPixels = m_bFilterFlyingPixels;
+	pCapture->iFPMaxNonFittingNeighbours = m_iFPMaxNonFittingNeighbours;
+	pCapture->iFPNeighbourhoodSize = m_iFPNeighbourhoodSize;
+	pCapture->iFPThreshold = m_iFPThreshold;
+
 	bool bNewFrameAcquired = pCapture->AcquireFrame();
 
 	if (!bNewFrameAcquired)
@@ -201,9 +210,12 @@ void LiveScanClient::UpdateFrame()
 
 	pCapture->MapDepthFrameToCameraSpace(m_pCameraSpaceCoordinates);
 	pCapture->MapDepthFrameToColorSpace(m_pColorCoordinatesOfDepth);
+
 	{
 		std::lock_guard<std::mutex> lock(m_mSocketThreadMutex);
-		StoreFrame(m_pCameraSpaceCoordinates, m_pColorCoordinatesOfDepth, pCapture->pColorRGBX, pCapture->vBodies, pCapture->pBodyIndex);
+		StoreEligibleVerticesWithColorAndBody(m_pCameraSpaceCoordinates, m_pColorCoordinatesOfDepth, pCapture->pColorRGBX, pCapture->vBodies, pCapture->pBodyIndex);
+
+		m_vLastFrameTriangleIndexes = MeshGenerator::generateTrianglesGradients(pCapture->pDepth, m_vDepthIndicesToVerticesMap, pCapture->nDepthFrameWidth, pCapture->nDepthFrameHeight);
 
 		if (m_bCaptureFrame)
 		{
@@ -482,6 +494,18 @@ void LiveScanClient::HandleSocket()
 			m_fFilterThreshold = *(float*)(received.c_str() + i);
 			i += sizeof(float);
 
+			m_bFilterFlyingPixels = (received[i] != 0);
+			i ++;
+
+			m_iFPThreshold = *(int*)(received.c_str() + i);
+			i += sizeof(m_iFPThreshold);
+
+			m_iFPMaxNonFittingNeighbours = *(int*)(received.c_str() + i);
+			i += sizeof(m_iFPMaxNonFittingNeighbours);
+
+			m_iFPNeighbourhoodSize = *(int*)(received.c_str() + i);
+			i += sizeof(m_iFPNeighbourhoodSize);
+
 			m_vBounds = bounds;
 
 			int nMarkers = *(int*)(received.c_str() + i);
@@ -532,8 +556,12 @@ void LiveScanClient::HandleSocket()
 			{
 				int size = -1;
 				m_pClientSocket->SendBytes((char*)&size, 4);
-			} else
-				SendFrame(points, colors, m_vLastFrameBody);
+			}
+			else
+			{
+				vector<TriangleIndexes> emptyVector;
+				SendFrame(points, colors, m_vLastFrameBody, emptyVector); // TODO : should store and give back true triangles
+			}
 		}
 		//send last frame
 		else if (received[i] == MSG_REQUEST_LAST_FRAME)
@@ -541,7 +569,7 @@ void LiveScanClient::HandleSocket()
 			byteToSend = MSG_LAST_FRAME;
 			m_pClientSocket->SendBytes(&byteToSend, 1);
 
-			SendFrame(m_vLastFrameVertices, m_vLastFrameRGB, m_vLastFrameBody);
+			SendFrame(m_vLastFrameVertices, m_vLastFrameRGB, m_vLastFrameBody, m_vLastFrameTriangleIndexes);
 		}
 		//receive calibration data
 		else if (received[i] == MSG_RECEIVE_CALIBRATION)
@@ -600,15 +628,15 @@ void LiveScanClient::HandleSocket()
 	}
 }
 
-void LiveScanClient::SendFrame(vector<Point3s> vertices, vector<RGB> RGB, vector<Body> body)
+void LiveScanClient::SendFrame(vector<Point3s> vertices, vector<RGB> RGB, vector<Body> body, vector<TriangleIndexes> triangles)
 {
-	int size = RGB.size() * (3 + 3 * sizeof(short)) + sizeof(int);
+	int size = (int)(RGB.size() * (3 + 3 * sizeof(short)) + sizeof(int) + triangles.size() * sizeof(TriangleIndexes) + sizeof(int));
 
 	vector<char> buffer(size);
 	char *ptr2 = (char*)vertices.data();
 	int pos = 0;
 
-	int nVertices = RGB.size();
+	int nVertices = (int)RGB.size();
 	memcpy(buffer.data() + pos, &nVertices, sizeof(nVertices));
 	pos += sizeof(nVertices);
 
@@ -623,7 +651,7 @@ void LiveScanClient::SendFrame(vector<Point3s> vertices, vector<RGB> RGB, vector
 		pos += sizeof(short) * 3;
 	}
 	
-	int nBodies = body.size();
+	int nBodies = (int)(body.size());
 	size += sizeof(nBodies);
 	for (int i = 0; i < nBodies; i++)
 	{
@@ -670,6 +698,13 @@ void LiveScanClient::SendFrame(vector<Point3s> vertices, vector<RGB> RGB, vector
 		}
 	}
 
+	int nTriangles = (int)triangles.size(); 
+	memcpy(buffer.data() + pos, &nTriangles, sizeof(nTriangles));
+	pos += sizeof(nTriangles);
+
+	memcpy(buffer.data() + pos, triangles.data(), sizeof(TriangleIndexes) * triangles.size());
+	pos += sizeof(TriangleIndexes) * triangles.size();
+
 	int iCompression = static_cast<int>(m_bFrameCompression);
 
 	if (m_bFrameCompression)
@@ -690,12 +725,17 @@ void LiveScanClient::SendFrame(vector<Point3s> vertices, vector<RGB> RGB, vector
 	m_pClientSocket->SendBytes(buffer.data(), size);
 }
 
-void LiveScanClient::StoreFrame(Point3f *vertices, Point2f *mapping, RGB *color, vector<Body> &bodies, BYTE* bodyIndex)
+void LiveScanClient::StoreEligibleVerticesWithColorAndBody(Point3f *vertices, Point2f *mapping, RGB *color, vector<Body> &bodies, BYTE* bodyIndex)
 {
 	std::vector<Point3f> goodVertices;
 	std::vector<RGB> goodColorPoints;
 
 	unsigned int nVertices = pCapture->nDepthFrameWidth * pCapture->nDepthFrameHeight;
+	unsigned int nEliglibleVertices = 0;
+
+	m_vDepthIndicesToVerticesMap.resize(nVertices);
+	std::fill(m_vDepthIndicesToVerticesMap.begin(), m_vDepthIndicesToVerticesMap.end(), -1);
+
 
 	for (unsigned int vertexIndex = 0; vertexIndex < nVertices; vertexIndex++)
 	{
@@ -718,9 +758,11 @@ void LiveScanClient::StoreFrame(Point3f *vertices, Point2f *mapping, RGB *color,
 					|| temp.Z < m_vBounds[2] || temp.Z > m_vBounds[5])
 					continue;
 			}
-
-			goodVertices.push_back(temp);
+			
 			goodColorPoints.push_back(tempColor);
+			goodVertices.push_back(temp);
+			m_vDepthIndicesToVerticesMap[vertexIndex] = nEliglibleVertices;
+			nEliglibleVertices++;
 		}
 	}
 
@@ -748,7 +790,12 @@ void LiveScanClient::StoreFrame(Point3f *vertices, Point2f *mapping, RGB *color,
 	}
 
 	if (m_bFilter)
-		filter(goodVertices, goodColorPoints, m_nFilterNeighbors, m_fFilterThreshold);
+	{
+		unordered_map<int, int> verticesMap;
+		verticesMap = filter(goodVertices, goodColorPoints, m_nFilterNeighbors, m_fFilterThreshold);
+		for (int i = 0; i < nVertices; i++)
+			m_vDepthIndicesToVerticesMap[i] = verticesMap[m_vDepthIndicesToVerticesMap[i]];
+	}
 
 	vector<Point3s> goodVerticesShort(goodVertices.size());
 
