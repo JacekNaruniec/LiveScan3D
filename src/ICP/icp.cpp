@@ -116,7 +116,7 @@ ICP_API float __stdcall ICP(Point3f *verts1, Point3f *verts2, int nVerts1, int n
 
 				matchDistances.push_back(distances[i]);
 
-				matchIdxs[indices[i]] = matched1.size() - 1;
+				matchIdxs[indices[i]] = (int)matched1.size() - 1;
 			}
 			else
 			{
@@ -135,8 +135,8 @@ ICP_API float __stdcall ICP(Point3f *verts1, Point3f *verts2, int nVerts1, int n
 		//error /= matchDistances.size();
 		//cout << error << endl;
 
-		cv::Mat matched1MatCv(matched1.size(), 3, CV_32F, matched1.data());
-		cv::Mat matched2MatCv(matched2.size(), 3, CV_32F, matched2.data());
+		cv::Mat matched1MatCv((int)matched1.size(), 3, CV_32F, matched1.data());
+		cv::Mat matched2MatCv((int)matched2.size(), 3, CV_32F, matched2.data());
 		cv::Mat tempT;
 		cv::reduce(matched1MatCv - matched2MatCv, tempT, 0, CV_REDUCE_AVG);
 

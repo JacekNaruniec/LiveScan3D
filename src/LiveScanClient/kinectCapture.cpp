@@ -195,7 +195,7 @@ bool KinectCapture::AcquireFrame()
 	GetBodyIndexFrame(pMultiFrame);
 
 	if (bFilterFlyingPixels)
-		filterFlyingPixels(iFPNeighbourhoodSize, iFPThreshold, iFPMaxNonFittingNeighbours);
+		filterFlyingPixels(iFPNeighbourhoodSize, (float)iFPThreshold, iFPMaxNonFittingNeighbours);
 
 	SafeRelease(pMultiFrame);
 

@@ -28,8 +28,8 @@ struct RGB
 void savePLY(std::string filename, std::vector<Point3f> vertices, std::vector<RGB> colors)
 {
 
-	unsigned int numVertices = vertices.size();
-	unsigned int numColors = colors.size();
+	unsigned int numVertices = (unsigned int)vertices.size();
+	unsigned int numColors = (unsigned int)colors.size();
 
 	// Open File
 	FILE *meshFile = NULL;
@@ -118,9 +118,9 @@ int main()
 
 	cv::Mat R = cv::Mat::eye(3, 3, CV_32F);
 	cv::Mat t(1, 3, CV_32F, cv::Scalar(0));
-	cv::Mat verts2Mat(verts2.size(), 3, CV_32F, (float*)verts2.data());
+	cv::Mat verts2Mat((int)verts2.size(), 3, CV_32F, (float*)verts2.data());
 
-	ICP(verts1.data(), verts2.data(), verts1.size(), verts2.size(), (float*)R.data, (float*)t.data, 1);
+	ICP(verts1.data(), verts2.data(), (int)verts1.size(), (int)verts2.size(), (float*)R.data, (float*)t.data, 1);
 
 	savePLY("../testResult.ply", verts2, colors2);
 

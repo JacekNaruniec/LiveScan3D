@@ -24,7 +24,6 @@
 #include "utils.h"
 #include "KinectCapture.h"
 #include "frameFileWriterReader.h"
-#include "meshGenerator.h"
 
 class LiveScanClient
 {
@@ -62,7 +61,6 @@ private:
 	bool m_bConfirmCalibrated;
 	bool m_bShowDepth;
 	bool m_bFrameCompression;
-	bool m_bGenerateMesh;
 	int m_iCompressionLevel;
 
 	FrameFileWriterReader m_framesFileWriterReader;
@@ -71,13 +69,7 @@ private:
 	SocketClient *m_pClientSocket;
 	std::vector<float> m_vBounds;
 
-	std::vector<Point3s> m_vLastFrameVertices;
-	std::vector<RGB> m_vLastFrameRGB;
 	std::vector<Body> m_vLastFrameBody;
-
-	std::vector<int> m_vDepthIndicesToVerticesMap;
-
-	std::vector<TriangleIndexes> m_vLastFrameTriangleIndexes; 
 
 	HWND m_hWnd;
     INT64 m_nLastCounter;
@@ -85,12 +77,11 @@ private:
     INT64 m_nNextStatusTime;
     DWORD m_nFramesSinceUpdate;	
 
-	Point3f* m_pCameraSpaceCoordinates;
-	Point2f* m_pColorCoordinatesOfDepth;
-	Point2f* m_pDepthCoordinatesOfColor;
+	Point2f *m_pColorCoordinatesOfDepth;
+	Point2f *m_pDepthCoordinatesOfColor;
+	vector<unsigned char> frameBuffer; 
 
-
-    // Direct2D
+	// Direct2D
     ImageRenderer* m_pDrawColor;
     ID2D1Factory* m_pD2DFactory;
 	RGB* m_pDepthRGBX;
@@ -102,10 +93,12 @@ private:
     bool SetStatusMessage(_In_z_ WCHAR* szMessage, DWORD nShowTimeMsec, bool bForce);
 
 	void HandleSocket();
-	void SendFrame(vector<Point3s> vertices, vector<RGB> RGB, vector<Body> body, vector<TriangleIndexes> triangles);
+	//void SendFrame(vector<Point3s> vertices, vector<RGB> RGB, vector<Body> body, vector<TriangleIndexes> triangles);
+	void SendFrame(const vector<unsigned char> &frameBuffer);
+	void SerializeFrame(const UINT16* depthBuffer, RGB *color, Point2f *color_mapping, vector<Body> body);
 
 	void SocketThreadFunction();
-	void StoreEligibleVerticesWithColorAndBody(Point3f *vertices, Point2f *mapping, RGB *color, vector<Body> &bodies, BYTE* bodyIndex);
+	void StoreEligibleBodies(vector<Body> &bodies, BYTE* bodyIndex);
 
 	void ShowFPS();
 	void ReadIPFromFile();

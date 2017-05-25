@@ -1,4 +1,4 @@
-#include "..\..\include\LiveScanClient\meshGenerator.h"
+#include "meshGenerator.h"
 
 using namespace std;
 

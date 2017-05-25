@@ -32,6 +32,7 @@ class Calibration
 public:
 	vector<float> worldT;
 	vector<vector<float>> worldR;
+		
 	int iUsedMarkerId;
 
 	vector<MarkerPose> markerPoses;

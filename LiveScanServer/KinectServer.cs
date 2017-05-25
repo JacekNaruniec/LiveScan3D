@@ -18,16 +18,31 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
+using System.Runtime.InteropServices;
 
 using System.Net.Sockets;
 using System.Net;
+using System.Diagnostics;
 using System.ComponentModel;
 
 namespace KinectServer
 {
+
     public delegate void SocketListChangedHandler(List<KinectSocket> list);
     public class KinectServer
     {
+
+
+        [DllImport("NativeUtils.dll")]
+        static extern void generateMeshFromDepthMaps(int n_maps, byte[] depth_maps, byte[] depth_colors, 
+            int[] widths, int[] heights, float []iparams, float []tparams, ref Mesh out_mesh);
+
+        [DllImport("NativeUtils.dll")]
+        static extern Mesh createMesh();
+
+        [DllImport("NativeUtils.dll")]
+        static extern void deleteMesh(ref Mesh mesh);
+
         Socket oServerSocket;
 
         bool bServerRunning = false;
@@ -39,7 +54,7 @@ namespace KinectServer
         List<KinectSocket> lClientSockets = new List<KinectSocket>();
 
         public event SocketListChangedHandler eSocketListChanged;
-
+       
         public int nClientCount
         {
             get
@@ -286,6 +301,105 @@ namespace KinectServer
                 return true;
         }
 
+        private List<int> copyMeshToTrianglesList(Mesh mesh)
+        {
+            if (mesh.nTriangles == 0)
+                return new List<int>();
+
+            int[] triangles = new int[mesh.nTriangles * 3];
+
+            Marshal.Copy(mesh.triangles, triangles, 0, mesh.nTriangles * 3);
+
+            return triangles.ToList<int>();
+        }
+
+        private List<Single> copyMeshToVerticesList(Mesh mesh)
+        {
+            int nElements = mesh.nVertices;
+
+            if (nElements == 0)
+                return new List<Single>();
+
+            Single[] vertices = new Single[nElements * 3];
+            Marshal.Copy(mesh.vertices, vertices, 0, nElements * 3);
+
+            return vertices.ToList<Single>(); 
+        }
+
+        private List<byte> copyMeshToRGBList(Mesh mesh)
+        {
+            int nElements = mesh.nVertices;
+
+            if (nElements == 0)
+                return new List<byte>();
+
+            byte[] rgb = new byte[nElements * 3];
+            Marshal.Copy(mesh.verticesRGB, rgb, 0, nElements * 3);
+
+            return rgb.ToList<byte>();
+        }
+
+        public void GenerateMesh(List<byte> lFrameRGB, List<Single> lFrameVerts, List<int> lFrameTriagles)
+        {
+            int nClients = lClientSockets.Count; 
+            byte[] depthMaps;
+            byte[] depthColors;
+            int[] widths = new int[nClients];
+            int[] heights = new int[nClients];
+            float[] intrinsicsParams = new float[7 * nClients];
+            float[] transformParams = new float[(3 + 3 * 3) * nClients];
+            Mesh mesh = new Mesh();
+            mesh.nVertices = 0;
+
+            int totalDepthBytes = 0;
+            int totalColorBytes = 0;
+            lock (oClientSocketLock)
+            {
+                for (int i = 0; i < nClients; i++)
+                {
+                    totalDepthBytes += lClientSockets[i].frameDepth.Count();
+                    totalColorBytes += lClientSockets[i].frameRGB.Count();
+                    widths[i] = lClientSockets[i].iDepthFrameWidth;
+                    heights[i] = lClientSockets[i].iDepthFrameHeight;
+                    intrinsicsParams[7 * i] = lClientSockets[i].oCameraIntrinsicParameters.cx;
+                    intrinsicsParams[7 * i + 1] = lClientSockets[i].oCameraIntrinsicParameters.cy;
+                    intrinsicsParams[7 * i + 2] = lClientSockets[i].oCameraIntrinsicParameters.fx;
+                    intrinsicsParams[7 * i + 3] = lClientSockets[i].oCameraIntrinsicParameters.fy;
+                    intrinsicsParams[7 * i + 4] = lClientSockets[i].oCameraIntrinsicParameters.r2;
+                    intrinsicsParams[7 * i + 5] = lClientSockets[i].oCameraIntrinsicParameters.r4;
+                    intrinsicsParams[7 * i + 6] = lClientSockets[i].oCameraIntrinsicParameters.r6;
+
+                    for (int j = 0; j < 3; j++)
+                        transformParams[j + 12 * i] = lClientSockets[i].oWorldTransform.t[j];
+
+                    for (int m = 0; m < 3; m++)
+                        for (int n = 0; n < 3; n++)
+                            transformParams[3 + m * 3 + n + 12 * i] = lClientSockets[i].oWorldTransform.R[m, n];
+
+                }
+                depthMaps = new byte[totalDepthBytes];
+                depthColors = new byte[totalColorBytes];
+                int copiedDepth = 0;
+                int copiedColors = 0;
+                for (int i = 0; i < nClients; i++)
+                {
+                    Array.Copy(lClientSockets[i].frameDepth, 0, depthMaps, copiedDepth, lClientSockets[i].frameDepth.Count());
+                    copiedDepth += lClientSockets[i].frameDepth.Count();
+                    Array.Copy(lClientSockets[i].frameRGB, 0, depthColors, copiedColors, lClientSockets[i].frameRGB.Count());
+                    copiedColors += lClientSockets[i].frameRGB.Count();
+                }
+            }
+
+            generateMeshFromDepthMaps(nClients, depthMaps, depthColors, widths, heights, intrinsicsParams, transformParams, ref mesh);
+
+            lFrameRGB.AddRange(copyMeshToRGBList(mesh));
+            lFrameVerts.AddRange(copyMeshToVerticesList(mesh));
+            lFrameTriagles.AddRange(copyMeshToTrianglesList(mesh));
+
+            deleteMesh(ref mesh);
+
+        }
+        
         public void GetLatestFrame(List<List<byte>> lFramesRGB, List<List<Single>> lFramesVerts, List<List<Body>> lFramesBody, List<List<int>> lFramesTriagles)
         {
             lFramesRGB.Clear();
@@ -323,16 +437,20 @@ namespace KinectServer
 
                 }
             }
+
+            List<byte> lFrameRGB = new List<byte>();
+            List<Single> lFrameVerts = new List<Single>();
+            List<int> lFrameTriagles = new List<int>();
+            GenerateMesh(lFrameRGB, lFrameVerts, lFrameTriagles);
+
             //Store received frames
             lock (oClientSocketLock)
             {
+                lFramesRGB.Add(new List<byte>(lFrameRGB));
+                lFramesVerts.Add(new List<Single>(lFrameVerts));
+                lFramesTriagles.Add(new List<int>(lFrameTriagles));
                 for (int i = 0; i < lClientSockets.Count; i++)
-                {
-                    lFramesRGB.Add(new List<byte>(lClientSockets[i].lFrameRGB));
-                    lFramesVerts.Add(new List<Single>(lClientSockets[i].lFrameVerts));
                     lFramesBody.Add(new List<Body>(lClientSockets[i].lBodies));
-                    lFramesTriagles.Add(new List<int>(lClientSockets[i].lTriangles));
-                }
             }
         }
 
@@ -362,6 +480,7 @@ namespace KinectServer
                         {
                             lClientSockets.Add(new KinectSocket(newClient));
                             lClientSockets[lClientSockets.Count - 1].SendSettings(oSettings);
+                            lClientSockets[lClientSockets.Count - 1].RequestCameraIntrinsicParameters();
                             lClientSockets[lClientSockets.Count - 1].eChanged += new SocketChangedHandler(SocketListChanged);
                             if (eSocketListChanged != null)
                             {
@@ -437,6 +556,11 @@ namespace KinectServer
                             {
                                 lClientSockets[i].ReceiveFrame();
                                 lClientSockets[i].bLatestFrameReceived = true;
+                            }
+                            // Camera intrinsic parameters
+                            else if (buffer[0] == 4)
+                            {
+                                lClientSockets[i].ReceiveCameraIntrinsicParameters();
                             }
 
                             buffer = lClientSockets[i].Receive(1);

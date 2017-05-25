@@ -46,7 +46,6 @@ LiveScanClient::LiveScanClient() :
 	m_pD2DFactory(NULL),
 	m_pDrawColor(NULL),
 	m_pDepthRGBX(NULL),
-	m_pCameraSpaceCoordinates(NULL),
 	m_pColorCoordinatesOfDepth(NULL),
 	m_pDepthCoordinatesOfColor(NULL),
 	m_bCalibrate(false),
@@ -105,12 +104,6 @@ LiveScanClient::~LiveScanClient()
 	{
 		delete[] m_pDepthRGBX;
 		m_pDepthRGBX = NULL;
-	}
-
-	if (m_pCameraSpaceCoordinates)
-	{
-		delete[] m_pCameraSpaceCoordinates;
-		m_pCameraSpaceCoordinates = NULL;
 	}
 
 	if (m_pColorCoordinatesOfDepth)
@@ -189,6 +182,110 @@ int LiveScanClient::Run(HINSTANCE hInstance, int nCmdShow)
     return static_cast<int>(msg.wParam);
 }
 
+void LiveScanClient::SerializeFrame(const UINT16* depthBuffer, RGB *color, Point2f *color_mapping, vector<Body> body)
+{
+	vector<unsigned char> tempBuffer;
+
+	int dw = pCapture->nDepthFrameWidth;
+	int dh = pCapture->nDepthFrameHeight;
+	int cw = pCapture->nColorFrameWidth;
+	int ch = pCapture->nColorFrameHeight;
+
+	int size = dw * dh * sizeof(UINT16) + dw * dh * 3;
+	
+	int nBodies = (int)(body.size());
+	size += sizeof(nBodies);
+	for (int i = 0; i < nBodies; i++)
+	{
+		size += sizeof(body[i].bTracked);
+		int nJoints =(int) body[i].vJoints.size();
+		size += sizeof(nJoints);
+		size += nJoints * (3 * sizeof(float) + 2 * sizeof(int));
+		size += nJoints * 2 * sizeof(float);
+	}
+	
+	int pos = 0;
+
+	tempBuffer.resize(size);
+	memcpy(tempBuffer.data() + pos, depthBuffer, dw * dh * sizeof(UINT16));
+	pos += dw * dh * sizeof(UINT16);
+
+	for (int i = 0; i < dw*dh; i++)
+	{
+		Point2f p = color_mapping[i]; 
+		if (p.X >= 0 && p.Y >= 0 && p.X < cw && p.Y < ch)
+		{
+			int color_pos = cw * (int)p.Y + (int)p.X;
+			tempBuffer[pos] = color[color_pos].rgbRed;
+			tempBuffer[pos + 1] = color[color_pos].rgbGreen;
+			tempBuffer[pos + 2] = color[color_pos].rgbBlue;
+		}
+		else
+			memset(tempBuffer.data() + pos, 0, 3);
+
+		pos += 3;
+	}
+
+	memcpy(tempBuffer.data() + pos, &nBodies, sizeof(nBodies));
+	pos += sizeof(nBodies);
+
+	for (int i = 0; i < nBodies; i++)
+	{
+		memcpy(tempBuffer.data() + pos, &body[i].bTracked, sizeof(body[i].bTracked));
+		pos += sizeof(body[i].bTracked);
+
+		int nJoints = (int)body[i].vJoints.size();
+		memcpy(tempBuffer.data() + pos, &nJoints, sizeof(nJoints));
+		pos += sizeof(nJoints);
+
+		for (int j = 0; j < nJoints; j++)
+		{
+			//Joint
+			memcpy(tempBuffer.data() + pos, &body[i].vJoints[j].JointType, sizeof(JointType));
+			pos += sizeof(JointType);
+			memcpy(tempBuffer.data() + pos, &body[i].vJoints[j].TrackingState, sizeof(TrackingState));
+			pos += sizeof(TrackingState);
+			//Joint position
+			memcpy(tempBuffer.data() + pos, &body[i].vJoints[j].Position.X, sizeof(float));
+			pos += sizeof(float);
+			memcpy(tempBuffer.data() + pos, &body[i].vJoints[j].Position.Y, sizeof(float));
+			pos += sizeof(float);
+			memcpy(tempBuffer.data() + pos, &body[i].vJoints[j].Position.Z, sizeof(float));
+			pos += sizeof(float);
+
+			//JointInColorSpace
+			memcpy(tempBuffer.data() + pos, &body[i].vJointsInColorSpace[j].X, sizeof(float));
+			pos += sizeof(float);
+			memcpy(tempBuffer.data() + pos, &body[i].vJointsInColorSpace[j].Y, sizeof(float));
+			pos += sizeof(float);
+		}
+	}
+
+	int iCompression = static_cast<int>(m_bFrameCompression);
+	if (m_bFrameCompression)
+	{
+		// *2, because according to zstd documentation, increasing the size of the output buffer above a 
+		// bound should speed up the compression.
+		int cBuffSize = (int)ZSTD_compressBound(size) * 2;
+		vector<unsigned char> compressedBuffer(cBuffSize);
+		int cSize = (int)ZSTD_compress(compressedBuffer.data(), cBuffSize, tempBuffer.data(), size, m_iCompressionLevel);
+		size = cSize;
+
+		tempBuffer.resize(size);
+		memcpy(tempBuffer.data(), compressedBuffer.data(), size);
+	}
+
+	{
+		std::lock_guard<std::mutex> lock(m_mSocketThreadMutex);
+		frameBuffer.resize(size + 16);
+		memcpy(frameBuffer.data(), (char*)&size, sizeof(size));
+		memcpy(frameBuffer.data() + 4, (char*)&iCompression, sizeof(iCompression));
+		memcpy(frameBuffer.data() + 8, (char*)&dw, sizeof(dw));
+		memcpy(frameBuffer.data() + 12, (char*)&dh, sizeof(dh));
+
+		memcpy(frameBuffer.data() + 16, tempBuffer.data(), size);
+	}
+}
 
 
 void LiveScanClient::UpdateFrame()
@@ -208,18 +305,15 @@ void LiveScanClient::UpdateFrame()
 	if (!bNewFrameAcquired)
 		return;
 
-	pCapture->MapDepthFrameToCameraSpace(m_pCameraSpaceCoordinates);
 	pCapture->MapDepthFrameToColorSpace(m_pColorCoordinatesOfDepth);
 
 	{
-		std::lock_guard<std::mutex> lock(m_mSocketThreadMutex);
-		StoreEligibleVerticesWithColorAndBody(m_pCameraSpaceCoordinates, m_pColorCoordinatesOfDepth, pCapture->pColorRGBX, pCapture->vBodies, pCapture->pBodyIndex);
-
-		m_vLastFrameTriangleIndexes = MeshGenerator::generateTrianglesGradients(pCapture->pDepth, m_vDepthIndicesToVerticesMap, pCapture->nDepthFrameWidth, pCapture->nDepthFrameHeight);
-
+		StoreEligibleBodies(pCapture->vBodies, pCapture->pBodyIndex);
+		SerializeFrame(pCapture->pDepth,pCapture->pColorRGBX, m_pColorCoordinatesOfDepth, pCapture->vBodies);
 		if (m_bCaptureFrame)
 		{
-			m_framesFileWriterReader.writeFrame(m_vLastFrameVertices, m_vLastFrameRGB);
+			// TODO: write depth and color images 
+			//m_framesFileWriterReader.writeFrame(m_vLastFrameVertices, m_vLastFrameRGB);
 			m_bConfirmCaptured = true;
 			m_bCaptureFrame = false;
 		}
@@ -246,11 +340,6 @@ void LiveScanClient::UpdateFrame()
 		ProcessColor(pCapture->pColorRGBX, pCapture->nColorFrameWidth, pCapture->nColorFrameHeight);
 	else
 		ProcessDepth(pCapture->pDepth, pCapture->nDepthFrameWidth, pCapture->nDepthFrameHeight);
-
-	if (m_bGenerateMesh)
-	{
-
-	}
 
 	ShowFPS();
 }
@@ -298,7 +387,6 @@ LRESULT CALLBACK LiveScanClient::DlgProc(HWND hWnd, UINT message, WPARAM wParam,
 			{
 				m_pDepthRGBX = new RGB[pCapture->nColorFrameWidth * pCapture->nColorFrameHeight];
 
-				m_pCameraSpaceCoordinates = new Point3f[pCapture->nDepthFrameWidth * pCapture->nDepthFrameHeight];
 				m_pColorCoordinatesOfDepth = new Point2f[pCapture->nDepthFrameWidth * pCapture->nDepthFrameHeight];
 				m_pDepthCoordinatesOfColor = new Point2f[pCapture->nColorFrameWidth * pCapture->nColorFrameHeight];
 			}
@@ -558,9 +646,8 @@ void LiveScanClient::HandleSocket()
 				m_pClientSocket->SendBytes((char*)&size, 4);
 			}
 			else
-			{
-				vector<TriangleIndexes> emptyVector;
-				SendFrame(points, colors, m_vLastFrameBody, emptyVector); // TODO : should store and give back true triangles
+			{		
+				SendFrame(frameBuffer);
 			}
 		}
 		//send last frame
@@ -569,7 +656,7 @@ void LiveScanClient::HandleSocket()
 			byteToSend = MSG_LAST_FRAME;
 			m_pClientSocket->SendBytes(&byteToSend, 1);
 
-			SendFrame(m_vLastFrameVertices, m_vLastFrameRGB, m_vLastFrameBody, m_vLastFrameTriangleIndexes);
+			SendFrame(frameBuffer);
 		}
 		//receive calibration data
 		else if (received[i] == MSG_RECEIVE_CALIBRATION)
@@ -591,6 +678,31 @@ void LiveScanClient::HandleSocket()
 
 			//so that we do not lose the next character in the stream
 			i--;
+		}
+		else if (received[i] == MSG_REQUEST_CAMERA_INTRINSIC_PARAMETERS)
+		{
+			byteToSend = MSG_CAMERA_INTRINSIC_PARAMETERS;
+			m_pClientSocket->SendBytes(&byteToSend, 1);
+
+			int size = 7 * sizeof(float) + 1;
+
+			char *buffer = new char[size];
+			int i = 0;
+			memcpy(buffer + i, &pCapture->sCameraIntrinsics.PrincipalPointX, 1 * sizeof(float));
+			i += 1 * sizeof(int);
+			memcpy(buffer + i, &pCapture->sCameraIntrinsics.PrincipalPointY, 1 * sizeof(float));
+			i += 1 * sizeof(int);
+			memcpy(buffer + i, &pCapture->sCameraIntrinsics.FocalLengthX, 1 * sizeof(float));
+			i += 1 * sizeof(int);
+			memcpy(buffer + i, &pCapture->sCameraIntrinsics.FocalLengthY, 1 * sizeof(float));
+			i += 1 * sizeof(int);
+			memcpy(buffer + i, &pCapture->sCameraIntrinsics.RadialDistortionSecondOrder, 1 * sizeof(float));
+			i += 1 * sizeof(int);
+			memcpy(buffer + i, &pCapture->sCameraIntrinsics.RadialDistortionFourthOrder, 1 * sizeof(float));
+			i += 1 * sizeof(int);
+			memcpy(buffer + i, &pCapture->sCameraIntrinsics.RadialDistortionSixthOrder, 1 * sizeof(float));
+
+			m_pClientSocket->SendBytes(buffer, size);
 		}
 		else if (received[i] == MSG_CLEAR_STORED_FRAMES)
 		{
@@ -628,143 +740,19 @@ void LiveScanClient::HandleSocket()
 	}
 }
 
-void LiveScanClient::SendFrame(vector<Point3s> vertices, vector<RGB> RGB, vector<Body> body, vector<TriangleIndexes> triangles)
+void LiveScanClient::SendFrame(const vector<unsigned char> &frameBuffer)
 {
-	int size = (int)(RGB.size() * (3 + 3 * sizeof(short)) + sizeof(int) + triangles.size() * sizeof(TriangleIndexes) + sizeof(int));
-
-	vector<char> buffer(size);
-	char *ptr2 = (char*)vertices.data();
-	int pos = 0;
-
-	int nVertices = (int)RGB.size();
-	memcpy(buffer.data() + pos, &nVertices, sizeof(nVertices));
-	pos += sizeof(nVertices);
-
-	for (unsigned int i = 0; i < RGB.size(); i++)
-	{
-		buffer[pos++] = RGB[i].rgbRed;
-		buffer[pos++] = RGB[i].rgbGreen;
-		buffer[pos++] = RGB[i].rgbBlue;
-
-		memcpy(buffer.data() + pos, ptr2, sizeof(short)* 3);
-		ptr2 += sizeof(short) * 3;
-		pos += sizeof(short) * 3;
-	}
-	
-	int nBodies = (int)(body.size());
-	size += sizeof(nBodies);
-	for (int i = 0; i < nBodies; i++)
-	{
-		size += sizeof(body[i].bTracked);
-		int nJoints = body[i].vJoints.size();
-		size += sizeof(nJoints);
-		size += nJoints * (3 * sizeof(float) + 2 * sizeof(int));
-		size += nJoints * 2 * sizeof(float);
-	}
-	buffer.resize(size);
-	
-	memcpy(buffer.data() + pos, &nBodies, sizeof(nBodies));
-	pos += sizeof(nBodies);
-
-	for (int i = 0; i < nBodies; i++)
-	{
-		memcpy(buffer.data() + pos, &body[i].bTracked, sizeof(body[i].bTracked));
-		pos += sizeof(body[i].bTracked);
-
-		int nJoints = body[i].vJoints.size();
-		memcpy(buffer.data() + pos, &nJoints, sizeof(nJoints));
-		pos += sizeof(nJoints);
-
-		for (int j = 0; j < nJoints; j++)
-		{
-			//Joint
-			memcpy(buffer.data() + pos, &body[i].vJoints[j].JointType, sizeof(JointType));
-			pos += sizeof(JointType);
-			memcpy(buffer.data() + pos, &body[i].vJoints[j].TrackingState, sizeof(TrackingState));
-			pos += sizeof(TrackingState);
-			//Joint position
-			memcpy(buffer.data() + pos, &body[i].vJoints[j].Position.X, sizeof(float));
-			pos += sizeof(float);
-			memcpy(buffer.data() + pos, &body[i].vJoints[j].Position.Y, sizeof(float));
-			pos += sizeof(float);
-			memcpy(buffer.data() + pos, &body[i].vJoints[j].Position.Z, sizeof(float));
-			pos += sizeof(float);
-
-			//JointInColorSpace
-			memcpy(buffer.data() + pos, &body[i].vJointsInColorSpace[j].X, sizeof(float));
-			pos += sizeof(float);
-			memcpy(buffer.data() + pos, &body[i].vJointsInColorSpace[j].Y, sizeof(float));
-			pos += sizeof(float);
-		}
-	}
-
-	int nTriangles = (int)triangles.size(); 
-	memcpy(buffer.data() + pos, &nTriangles, sizeof(nTriangles));
-	pos += sizeof(nTriangles);
-
-	memcpy(buffer.data() + pos, triangles.data(), sizeof(TriangleIndexes) * triangles.size());
-	pos += sizeof(TriangleIndexes) * triangles.size();
-
-	int iCompression = static_cast<int>(m_bFrameCompression);
-
-	if (m_bFrameCompression)
-	{
-		// *2, because according to zstd documentation, increasing the size of the output buffer above a 
-		// bound should speed up the compression.
-		int cBuffSize = ZSTD_compressBound(size) * 2;	
-		vector<char> compressedBuffer(cBuffSize);
-		int cSize = ZSTD_compress(compressedBuffer.data(), cBuffSize, buffer.data(), size, m_iCompressionLevel);
-		size = cSize; 
-		buffer = compressedBuffer;
-	}
-	char header[8];
-	memcpy(header, (char*)&size, sizeof(size));
-	memcpy(header + 4, (char*)&iCompression, sizeof(iCompression));
-
-	m_pClientSocket->SendBytes((char*)&header, sizeof(int) * 2);
-	m_pClientSocket->SendBytes(buffer.data(), size);
+	int size = (int)frameBuffer.size();
+	m_pClientSocket->SendBytes((char*)frameBuffer.data(), size);
 }
 
-void LiveScanClient::StoreEligibleVerticesWithColorAndBody(Point3f *vertices, Point2f *mapping, RGB *color, vector<Body> &bodies, BYTE* bodyIndex)
+void LiveScanClient::StoreEligibleBodies(vector<Body> &bodies, BYTE* bodyIndex)
 {
 	std::vector<Point3f> goodVertices;
 	std::vector<RGB> goodColorPoints;
 
 	unsigned int nVertices = pCapture->nDepthFrameWidth * pCapture->nDepthFrameHeight;
 	unsigned int nEliglibleVertices = 0;
-
-	m_vDepthIndicesToVerticesMap.resize(nVertices);
-	std::fill(m_vDepthIndicesToVerticesMap.begin(), m_vDepthIndicesToVerticesMap.end(), -1);
-
-
-	for (unsigned int vertexIndex = 0; vertexIndex < nVertices; vertexIndex++)
-	{
-		if (m_bStreamOnlyBodies && bodyIndex[vertexIndex] >= bodies.size())
-			continue;
-
-		if (vertices[vertexIndex].Z >= 0 && mapping[vertexIndex].Y >= 0 && mapping[vertexIndex].Y < pCapture->nColorFrameHeight)
-		{
-			Point3f temp = vertices[vertexIndex];
-			RGB tempColor = color[(int)mapping[vertexIndex].X + (int)mapping[vertexIndex].Y * pCapture->nColorFrameWidth];
-			if (calibration.bCalibrated)
-			{
-				temp.X += calibration.worldT[0];
-				temp.Y += calibration.worldT[1];
-				temp.Z += calibration.worldT[2];
-				temp = RotatePoint(temp, calibration.worldR);
-
-				if (temp.X < m_vBounds[0] || temp.X > m_vBounds[3]
-					|| temp.Y < m_vBounds[1] || temp.Y > m_vBounds[4]
-					|| temp.Z < m_vBounds[2] || temp.Z > m_vBounds[5])
-					continue;
-			}
-			
-			goodColorPoints.push_back(tempColor);
-			goodVertices.push_back(temp);
-			m_vDepthIndicesToVerticesMap[vertexIndex] = nEliglibleVertices;
-			nEliglibleVertices++;
-		}
-	}
 
 	vector<Body> tempBodies = bodies;
 
@@ -789,24 +777,7 @@ void LiveScanClient::StoreEligibleVerticesWithColorAndBody(Point3f *vertices, Po
 		}
 	}
 
-	if (m_bFilter)
-	{
-		unordered_map<int, int> verticesMap;
-		verticesMap = filter(goodVertices, goodColorPoints, m_nFilterNeighbors, m_fFilterThreshold);
-		for (int i = 0; i < nVertices; i++)
-			m_vDepthIndicesToVerticesMap[i] = verticesMap[m_vDepthIndicesToVerticesMap[i]];
-	}
-
-	vector<Point3s> goodVerticesShort(goodVertices.size());
-
-	for (unsigned int i = 0; i < goodVertices.size(); i++)
-	{
-		goodVerticesShort[i] = goodVertices[i];
-	}
-
 	m_vLastFrameBody = tempBodies;
-	m_vLastFrameVertices = goodVerticesShort;
-	m_vLastFrameRGB = goodColorPoints;
 }
 
 void LiveScanClient::ShowFPS()

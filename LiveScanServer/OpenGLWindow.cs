@@ -415,17 +415,20 @@ namespace KinectServer
 
         private void AddTriangles(int startIdx)
         {
+            float []verticesArray = vertices.ToArray();
+            byte[] colorsArray = colors.ToArray();
             int endIdx = startIdx + TriangleCount * 3;
             for (int i = startIdx; i < endIdx; i++)
             {
-                int v = triangles[i - startIdx];
-                VBO[i].Position.X = vertices[3 * v];
-                VBO[i].Position.Y = vertices[3 * v + 1];
-                VBO[i].Position.Z = vertices[3 * v + 2];
+                int v3 = 3 * triangles[i - startIdx];
 
-                VBO[i].R = colors[v * 3];
-                VBO[i].G = colors[v * 3 + 1];
-                VBO[i].B = colors[v * 3 + 2];
+                VBO[i].Position.X = verticesArray[v3];
+                VBO[i].Position.Y = verticesArray[v3 + 1];
+                VBO[i].Position.Z = verticesArray[v3 + 2];
+
+                VBO[i].R = colorsArray[v3];
+                VBO[i].G = colorsArray[v3 + 1];
+                VBO[i].B = colorsArray[v3 + 2];
                 VBO[i].A = 255;
             }      
         }

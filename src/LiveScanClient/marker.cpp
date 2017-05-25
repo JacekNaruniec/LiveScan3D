@@ -327,7 +327,7 @@ void MarkerDetector::CornersSubPix(vector<cv::Point2f> &corners, vector<cv::Poin
 	}
 
 	vector<cv::Point2f> corners2;
-	for (unsigned int i = corners.size() - 1; i < 2 * corners.size() - 1; i++)
+	for (unsigned int i = (unsigned int)corners.size() - 1; i < 2 * (unsigned int)corners.size() - 1; i++)
 		corners2.push_back(GetIntersection(lines[(i + 1) % corners.size()], lines[i % corners.size()]));
 
 	corners = corners2;

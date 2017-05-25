@@ -38,7 +38,8 @@ namespace KinectServer
 {
     public partial class MainWindowForm : Form
     {
-        [DllImport("ICP.dll")]
+
+        [DllImport("NativeUtils.dll")]
         static extern float ICP(IntPtr verts1, IntPtr verts2, int nVerts1, int nVerts2, float[] R, float[] t, int maxIter = 200);
 
         KinectServer oServer;

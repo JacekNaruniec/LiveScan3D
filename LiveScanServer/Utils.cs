@@ -32,13 +32,6 @@ namespace KinectServer
         public float Z;
     }
 
-/*    public struct Triangle
-    {
-        public int v1;
-        public int v2;
-        public int v3;
-    }
-*/
     [Serializable]
     public class AffineTransform
     {
@@ -59,6 +52,14 @@ namespace KinectServer
                 t[i] = 0;
             }
         }
+    }
+
+    [Serializable]
+    public class IntrinsicCameraParameters
+    {
+        public float cx, cy;        // principal points
+        public float fx, fy;        // focal lengths
+        public float r2, r4, r6;    // camera radial distortion parameters (second, fourth and sixth order)
     }
 
     [Serializable]
@@ -219,3 +220,12 @@ namespace KinectServer
         }
     }
 }
+public struct Mesh
+{
+    public int nVertices;
+    public IntPtr vertices;
+    public IntPtr verticesRGB;
+
+    public int nTriangles;
+    public IntPtr triangles;
+};

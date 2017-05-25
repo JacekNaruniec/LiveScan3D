@@ -38,12 +38,22 @@ namespace KinectServer
         //The transform that maps the vertices in the sensor coordinate system to the world corrdinate system.
         public AffineTransform oWorldTransform = new AffineTransform();
 
+        public IntrinsicCameraParameters oCameraIntrinsicParameters = new IntrinsicCameraParameters();
+
         public string sSocketState;
 
+        public List<Body> lBodies = new List<Body>();
+        public byte[] frameDepth;
+        public byte[] frameRGB;
+
+        public int iDepthFrameWidth = 0;
+        public int iDepthFrameHeight = 0;
+
+        // to delete
+        public List<int> lTriangles = new List<int>();
         public List<byte> lFrameRGB = new List<byte>();
         public List<Single> lFrameVerts = new List<Single>();
-        public List<Body> lBodies = new List<Body>();
-        public List<int> lTriangles = new List<int>();
+        // ----------
 
         public event SocketChangedHandler eChanged;
 
@@ -122,6 +132,49 @@ namespace KinectServer
             SendByte();
         }
 
+        public void RequestCameraIntrinsicParameters()
+        {
+            byteToSend[0] = 7;
+            SendByte();
+        }
+        public void Recieve(byte[] buffer, int nToRead)
+        {
+            int nAlreadyRead = 0;
+
+            while (nAlreadyRead != nToRead)
+            {
+                while (oSocket.Available == 0)
+                {
+                    if (!SocketConnected())
+                        return;
+                }
+
+                nAlreadyRead += oSocket.Receive(buffer, nAlreadyRead, nToRead - nAlreadyRead, SocketFlags.None);
+            }
+        }
+
+        public void ReceiveCameraIntrinsicParameters()
+        {
+            bCalibrated = true;
+
+            byte[] buffer = new byte[7 * sizeof(Single)];
+            Recieve(buffer, 7 * sizeof(float));
+            int pos = 0;
+            oCameraIntrinsicParameters.cx = BitConverter.ToSingle(buffer, 0);
+            pos += sizeof(float);
+            oCameraIntrinsicParameters.cy = BitConverter.ToSingle(buffer, pos);
+            pos += sizeof(float);
+            oCameraIntrinsicParameters.fx = BitConverter.ToSingle(buffer, pos);
+            pos += sizeof(float);
+            oCameraIntrinsicParameters.fy = BitConverter.ToSingle(buffer, pos);
+            pos += sizeof(float);
+            oCameraIntrinsicParameters.r2 = BitConverter.ToSingle(buffer, pos);
+            pos += sizeof(float);
+            oCameraIntrinsicParameters.r4 = BitConverter.ToSingle(buffer, pos);
+            pos += sizeof(float);
+            oCameraIntrinsicParameters.r6 = BitConverter.ToSingle(buffer, pos);
+        }
+
         public void ReceiveCalibrationData()
         {
             bCalibrated = true;
@@ -149,15 +202,14 @@ namespace KinectServer
             UpdateSocketState();
         }
 
+     
+
         public void ReceiveFrame()
         {
-            lFrameRGB.Clear();
-            lFrameVerts.Clear();
             lBodies.Clear();
-            lTriangles.Clear();
 
-            int nToRead;
-            byte[] buffer = new byte[1024];
+            int nToRead = 16;
+            byte[] buffer = new byte[nToRead];
 
             while (oSocket.Available == 0)
             {
@@ -165,9 +217,15 @@ namespace KinectServer
                     return;
             }
 
-            oSocket.Receive(buffer, 8, SocketFlags.None);
+            Recieve(buffer, nToRead);
+
+            //oSocket.Receive(buffer, 16, SocketFlags.None);
             nToRead = BitConverter.ToInt32(buffer, 0);
             int iCompressed = BitConverter.ToInt32(buffer, 4);
+            int iDepthWidth = BitConverter.ToInt32(buffer, 8);
+            int iDepthHeight = BitConverter.ToInt32(buffer, 12);
+            iDepthFrameWidth = iDepthWidth;
+            iDepthFrameHeight = iDepthHeight;
 
             if (nToRead == -1)
             {
@@ -176,49 +234,28 @@ namespace KinectServer
             }
 
             buffer = new byte[nToRead];
-            int nAlreadyRead = 0;
 
-            while (nAlreadyRead != nToRead)
-            {
-                while (oSocket.Available == 0)
-                {
-                    if (!SocketConnected())
-                        return;
-                }
 
-                nAlreadyRead += oSocket.Receive(buffer, nAlreadyRead, nToRead - nAlreadyRead, SocketFlags.None);
-            }
-
-            
-
+            Recieve(buffer, nToRead);
 
             if (iCompressed == 1)
                 buffer = ZSTDDecompressor.Decompress(buffer);
 
-            //Receive depth and color data
-            int startIdx = 0;
+            if (iDepthWidth == 0)
+                iDepthWidth = 0;
 
-            int n_vertices = BitConverter.ToInt32(buffer, startIdx);
-            startIdx += 4;
+            frameDepth = new byte[iDepthWidth * iDepthHeight * 2];
+            frameRGB = new byte[iDepthWidth * iDepthHeight * 3];
 
-            for (int i = 0; i < n_vertices; i++)
-            {
-                for (int j = 0; j < 3; j++)
-                {
-                    lFrameRGB.Add(buffer[startIdx++]);
-                }
-                for (int j = 0; j < 3; j++)
-                {
-                    float val = BitConverter.ToInt16(buffer, startIdx);
-                    //converting from milimeters to meters
-                    val /= 1000.0f;
-                    lFrameVerts.Add(val);
-                    startIdx += 2;
-                }
-            }
+            Array.Copy(buffer, frameDepth, iDepthWidth * iDepthHeight * 2);
+            Array.Copy(buffer, iDepthWidth * iDepthHeight * 2, frameRGB, 0, iDepthWidth * iDepthHeight * 3);
+
+            //Receive body data
+            int startIdx = iDepthWidth * iDepthHeight * 5;
 
             //Receive body data
             int nBodies = BitConverter.ToInt32(buffer, startIdx);
+
             startIdx += 4;
             for (int i = 0; i < nBodies; i++)
             {
@@ -257,18 +294,8 @@ namespace KinectServer
 
                 lBodies.Add(tempBody);
             }
-
-            // recieve triangles
-            int nTriangles = BitConverter.ToInt32(buffer, startIdx);
-            startIdx += 4;
-
-            for (int i = 0; i < nTriangles * 3; i++)
-            {
-                int v = BitConverter.ToInt32(buffer, startIdx);
-                lTriangles.Add(v);
-                startIdx += 4;
-            }
         }
+
 
         public byte[] Receive(int nBytes)
         {
