@@ -47,9 +47,7 @@ namespace KinectServer
 
         //Those three variables are shared with the OpenGLWindow class and are used to exchange data with it.
         //Vertices from all of the sensors
-        List<float> lAllVertices = new List<float>();
-        //Color data from all of the sensors
-        List<byte> lAllColors = new List<byte>();
+        List<VertexC4ubV3f> lAllVertices = new List<VertexC4ubV3f>();
         //Sensor poses from all of the sensors
         List<AffineTransform> lAllCameraPoses = new List<AffineTransform>();
         //Body data from all of the sensors
@@ -87,8 +85,8 @@ namespace KinectServer
             oServer = new KinectServer(oSettings);
             oServer.eSocketListChanged += new SocketListChangedHandler(UpdateListView);
             oTransferServer = new TransferServer();
-            oTransferServer.lVertices = lAllVertices;
-            oTransferServer.lColors = lAllColors;
+            //oTransferServer.lVertices = lAllVertices;
+            //oTransferServer.lColors = lAllColors;
 
             InitializeComponent();
         }
@@ -174,7 +172,6 @@ namespace KinectServer
             {
                 oOpenGLWindow.triangles = lAllTriangles;
                 oOpenGLWindow.vertices = lAllVertices;
-                oOpenGLWindow.colors = lAllColors;
                 oOpenGLWindow.cameraPoses = lAllCameraPoses;
                 oOpenGLWindow.bodies = lAllBodies;
                 oOpenGLWindow.settings = oSettings;
@@ -259,36 +256,35 @@ namespace KinectServer
         //Continually requests frames that will be displayed in the live view window.
         private void updateWorker_DoWork(object sender, DoWorkEventArgs e)
         {
-            List<List<byte>> lFramesRGB = new List<List<byte>>();
-            List<List<Single>> lFramesVerts = new List<List<Single>>();
             List<List<Body>> lFramesBody = new List<List<Body>>();
-            List<List<int>> lFramesTriangles = new List<List<int>>();
+            List<VertexC4ubV3f> lFramesVerts = new List<VertexC4ubV3f>();
+            List<int> lFramesTriangles = new List<int>();
             BackgroundWorker worker = (BackgroundWorker)sender;
             while (!worker.CancellationPending)
             {
                 Thread.Sleep(1);
-                oServer.GetLatestFrame(lFramesRGB, lFramesVerts, lFramesBody, lFramesTriangles);
+                 
+                //oServer.RequestLastFrames();
+                oServer.CopyLatestFrames();
+                oServer.RequestLastFrames();
+                oServer.GenerateAndGetMesh(lFramesVerts, lFramesBody, lFramesTriangles);
 
                 //Update the vertex and color lists that are common between this class and the OpenGLWindow.
                 lock (lAllVertices)
                 {
                     lAllVertices.Clear();
-                    lAllColors.Clear();
                     lAllBodies.Clear();
-                    lAllCameraPoses.Clear();
                     lAllTriangles.Clear();
 
 
                     int TotalVerticesCount = 0;
                     int TotalTrianglesElementsCount = 0;
                     int ActTotalTrianglesElementsCount = 0;
-                    for (int i = 0; i < lFramesRGB.Count; i++)
+                    lAllVertices.AddRange(lFramesVerts);
+                    lAllTriangles.AddRange(lFramesTriangles);
+                    for (int i = 0; i < lAllBodies.Count; i++)
                     {
-                        lAllVertices.AddRange(lFramesVerts[i]);
-                        lAllColors.AddRange(lFramesRGB[i]);
                         lAllBodies.AddRange(lFramesBody[i]);
-                        lAllTriangles.AddRange(lFramesTriangles[i]);
-
 
                         ActTotalTrianglesElementsCount = lAllTriangles.Count;
                         for (int v = TotalTrianglesElementsCount; v < ActTotalTrianglesElementsCount; v++)
@@ -298,9 +294,17 @@ namespace KinectServer
                         TotalVerticesCount = lAllVertices.Count;           
                     }
 
-                    lAllCameraPoses.AddRange(oServer.lCameraPoses);
                 }
 
+                // adding camera poses is in separate range, because oServer.lCameraPoses "get" locks oClientSocketLock 
+                // that may cause deadlock when locking with lAllVertices
+                List<AffineTransform> cameraPoses = oServer.lCameraPoses;
+
+                lock (lAllVertices)
+                {
+                    lAllCameraPoses.Clear();
+                    lAllCameraPoses.AddRange(cameraPoses);
+                }
                 //Notes the fact that a new frame was downloaded, this is used to estimate the FPS.
                 if (oOpenGLWindow != null)
                     oOpenGLWindow.CloudUpdateTick();            
@@ -309,19 +313,29 @@ namespace KinectServer
         
         //Performs the ICP based pose refinement.
         private void refineWorker_DoWork(object sender, DoWorkEventArgs e)
-        {                      
+        {           
+                    
             if (oServer.bAllCalibrated == false)
             {
                 SetStatusBarOnTimer("Not all of the devices are calibrated.", 5000);
                 return;
-            } 
+            }
 
             //Download a frame from each client.
             List<List<float>> lAllFrameVertices = new List<List<float>>();
-            List<List<byte>> lAllFrameColors = new List<List<byte>>();
-            List<List<Body>> lAllFrameBody = new List<List<Body>>();
-            List<List<int>> lAllFrameTriangles = new List<List<int>>();
-            oServer.GetLatestFrame(lAllFrameColors, lAllFrameVertices, lAllFrameBody, lAllFrameTriangles);
+            List<List<VertexC4ubV3f>> lAllVerticesWithColors = new List<List<VertexC4ubV3f>>();
+            oServer.GetLatestFrameVerticesOnly(lAllVerticesWithColors);
+
+            for (int i=0; i< lAllVerticesWithColors.Count; i++)
+            {
+                lAllFrameVertices.Add(new List<float>(lAllVerticesWithColors[i].Count * 3));
+                foreach (VertexC4ubV3f v in lAllVerticesWithColors[i])
+                {
+                    lAllFrameVertices[i].Add(v.X);
+                    lAllFrameVertices[i].Add(v.Y);
+                    lAllFrameVertices[i].Add(v.Z);
+                }
+            }
 
             //Initialize containers for the poses.
             List<float[]> Rs = new List<float[]>();
@@ -342,7 +356,7 @@ namespace KinectServer
 
             //Use ICP to refine the sensor poses.
             //This part is explained in more detail in our article (name on top of this file).
-
+            
             for (int refineIter = 0; refineIter < oSettings.nNumRefineIters; refineIter++)
             {
                 for (int i = 0; i < lAllFrameVertices.Count; i++)

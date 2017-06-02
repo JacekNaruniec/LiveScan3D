@@ -88,23 +88,25 @@ void createVertices(unsigned short *depth_map, unsigned char *depth_colors, int 
 }
 
 void generateVerticesFromDepthMaps(unsigned char* depth_maps, unsigned char *depth_colors, int *widths, int *heights,
-	vector<WorldTranformation> &world_transforms, vector<IntrinsicCameraParameters> &intrinsic_params, vector<VerticesWithDepthColorMaps> &vertices_with_maps)
+	vector<WorldTranformation> &world_transforms, vector<IntrinsicCameraParameters> &intrinsic_params, vector<VerticesWithDepthColorMaps> &vertices_with_maps,
+	int map_index = -1)
 {
 	int depth_pos = 0, colors_pos = 0;
 	vector<thread> threads; 
 	int n_maps = (int)vertices_with_maps.size(); 
-
+	
 	for (int i = 0; i < n_maps; i++)
 	{
 		int n_pixels = widths[i] * heights[i];
 
-		threads.push_back(thread(createVertices, (unsigned short*)(depth_maps + depth_pos), depth_colors + colors_pos, widths[i], heights[i], intrinsic_params[i],
-			world_transforms[i], std::ref(vertices_with_maps[i])));
+		if (map_index == -1 || map_index == i)
+			threads.push_back(thread(createVertices, (unsigned short*)(depth_maps + depth_pos), depth_colors + colors_pos, widths[i], heights[i], intrinsic_params[i],
+				world_transforms[i], std::ref(vertices_with_maps[i])));
 		depth_pos += n_pixels * 2;
 		colors_pos += n_pixels * 3;
 	}
 
-	for (int i = 0; i < n_maps; i++)
+	for (int i = 0; i < threads.size(); i++)
 		threads[i].join();
 }
 
@@ -271,11 +273,48 @@ void generateTrianglesForVertices(vector<VerticesWithDepthColorMaps> &vertices_w
 }
 
 
+DEPTH_PROCESSING_API void __stdcall generateTrainglesWithColorsFromDepthMap(int n_maps, unsigned char* depth_maps,
+	unsigned char *depth_colors, int *widths, int *heights, float *intr_params, float *wtransform_params, Mesh *out_mesh, int depth_map_index)
+{
+	int depth_pos = 0, colors_pos = 0;;
+	vector<VerticesWithDepthColorMaps> vertices_with_maps(n_maps);
+
+	vector<IntrinsicCameraParameters> intrinsic_params(n_maps);
+	vector<WorldTranformation> world_transforms(n_maps);
+
+	for (int i = 0; i < n_maps; i++)
+	{
+		intrinsic_params[i] = IntrinsicCameraParameters(intr_params + i * 7);
+		world_transforms[i] = WorldTranformation(wtransform_params + i*(9 + 3));
+	}
+
+	generateVerticesFromDepthMaps(depth_maps, depth_colors, widths, heights, world_transforms, intrinsic_params, vertices_with_maps, depth_map_index);
+
+	int n_total_vertices = 0;
+	for (int i = 0; i < n_maps; i++)
+		n_total_vertices += (int)vertices_with_maps[i].vertices.size();
+
+	out_mesh->nVertices = n_total_vertices;
+	out_mesh->vertices = new VertexC4ubV3f[n_total_vertices];
+	out_mesh->triangles = nullptr; 
+	out_mesh->nTriangles = 0;
+
+	for (int j = 0; j < vertices_with_maps[depth_map_index].vertices.size(); j++)
+	{
+		out_mesh->vertices[j].R = vertices_with_maps[depth_map_index].colors[j * 3];
+		out_mesh->vertices[j].G = vertices_with_maps[depth_map_index].colors[j * 3 + 1];
+		out_mesh->vertices[j].B = vertices_with_maps[depth_map_index].colors[j * 3 + 2];
+		out_mesh->vertices[j].A = 255;
+		out_mesh->vertices[j].X = vertices_with_maps[depth_map_index].vertices[j].X;
+		out_mesh->vertices[j].Y = vertices_with_maps[depth_map_index].vertices[j].Y;
+		out_mesh->vertices[j].Z = vertices_with_maps[depth_map_index].vertices[j].Z;
+
+	}	
+}
+
 DEPTH_PROCESSING_API void __stdcall generateMeshFromDepthMaps(int n_maps, unsigned char* depth_maps,
 	unsigned char *depth_colors, int *widths, int *heights, float *intr_params, float *wtransform_params, Mesh *out_mesh)
 {
-	
-
 	int depth_pos = 0, colors_pos = 0;;
 	vector<VerticesWithDepthColorMaps> vertices_with_maps(n_maps);
 
@@ -296,14 +335,23 @@ DEPTH_PROCESSING_API void __stdcall generateMeshFromDepthMaps(int n_maps, unsign
 		n_total_vertices += (int)vertices_with_maps[i].vertices.size();
 
 	out_mesh->nVertices = n_total_vertices;
-	out_mesh->vertices = new float[n_total_vertices * 3];
-	out_mesh->verticesRGB = new unsigned char[n_total_vertices * 3];
+	out_mesh->vertices = new VertexC4ubV3f[n_total_vertices];
 
 	size_t vertices_so_far = 0;
 	for (int i = 0; i < n_maps; i++)
 	{
-		memcpy(out_mesh->vertices + vertices_so_far * 3, (void*)vertices_with_maps[i].vertices.data(), vertices_with_maps[i].vertices.size() * 3 * sizeof(float));
-		memcpy(out_mesh->verticesRGB + vertices_so_far * 3, vertices_with_maps[i].colors.data(), vertices_with_maps[i].colors.size());
+		for (int j = 0; j < vertices_with_maps[i].vertices.size(); j++)
+		{
+			out_mesh->vertices[j + vertices_so_far].R = vertices_with_maps[i].colors[j * 3];
+			out_mesh->vertices[j + vertices_so_far].G = vertices_with_maps[i].colors[j * 3 + 1];
+			out_mesh->vertices[j + vertices_so_far].B = vertices_with_maps[i].colors[j * 3 + 2];
+			out_mesh->vertices[j + vertices_so_far].A = 255;
+			out_mesh->vertices[j + vertices_so_far].X = vertices_with_maps[i].vertices[j].X;
+			out_mesh->vertices[j + vertices_so_far].Y = vertices_with_maps[i].vertices[j].Y;
+			out_mesh->vertices[j + vertices_so_far].Z = vertices_with_maps[i].vertices[j].Z;
+
+		}
+
 		vertices_so_far += vertices_with_maps[i].vertices.size();
 	}
 
@@ -346,7 +394,6 @@ extern "C" DEPTH_PROCESSING_API Mesh* __stdcall createMesh()
 	newMesh->nVertices = 0;
 	newMesh->triangles = NULL;
 	newMesh->vertices = NULL;
-	newMesh->verticesRGB = NULL;
 	return newMesh; 
 }
 
@@ -357,7 +404,4 @@ extern "C" DEPTH_PROCESSING_API void __stdcall deleteMesh(Mesh* mesh)
 	
 	if (mesh->vertices != 0)
 		delete []mesh->vertices;
-
-	if (mesh->verticesRGB != 0)
-		delete []mesh->verticesRGB;
 }

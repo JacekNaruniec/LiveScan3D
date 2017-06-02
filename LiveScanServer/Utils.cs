@@ -219,13 +219,29 @@ namespace KinectServer
             fileStream.Close();
         }
     }
-}
-public struct Mesh
-{
-    public int nVertices;
-    public IntPtr vertices;
-    public IntPtr verticesRGB;
+    /*
+    public struct VertexWithColour
+    {
+        public byte R, G, B, A;
+        public float v1, v2, v3; 
+    }*/
 
-    public int nTriangles;
-    public IntPtr triangles;
-};
+    // this struct is used for drawing
+    public struct VertexC4ubV3f
+    {
+        public byte R, G, B, A;
+        public float X, Y, Z;
+
+        public static int SizeInBytes = 16;
+    }
+
+    public struct Mesh
+    {
+        public int nVertices;
+        public IntPtr verticesWithColors;
+
+        public int nTriangles;
+        public IntPtr triangles;
+    };
+
+}

@@ -32,6 +32,7 @@ namespace KinectServer
         public bool bLatestFrameReceived = false;
         public bool bStoredFrameReceived = false;
         public bool bNoMoreStoredFrames = true;
+        public bool bWaitingForFrame = false;
         public bool bCalibrated = false;
         //The pose of the sensor in the scene (used by the OpenGLWindow to show the sensor)
         public AffineTransform oCameraPose = new AffineTransform();
@@ -99,6 +100,7 @@ namespace KinectServer
             SendByte();
             bNoMoreStoredFrames = false;
             bStoredFrameReceived = false;
+            bWaitingForFrame = true;
         }
 
         public void RequestLastFrame()
@@ -106,6 +108,7 @@ namespace KinectServer
             byteToSend[0] = 4;
             SendByte();
             bLatestFrameReceived = false;
+            bWaitingForFrame = true;
         }
 
         public void SendCalibrationData()
@@ -137,7 +140,7 @@ namespace KinectServer
             byteToSend[0] = 7;
             SendByte();
         }
-        public void Recieve(byte[] buffer, int nToRead)
+        public void Receive(byte[] buffer, int nToRead)
         {
             int nAlreadyRead = 0;
 
@@ -158,7 +161,7 @@ namespace KinectServer
             bCalibrated = true;
 
             byte[] buffer = new byte[7 * sizeof(Single)];
-            Recieve(buffer, 7 * sizeof(float));
+            Receive(buffer, 7 * sizeof(float));
             int pos = 0;
             oCameraIntrinsicParameters.cx = BitConverter.ToSingle(buffer, 0);
             pos += sizeof(float);
@@ -179,14 +182,15 @@ namespace KinectServer
         {
             bCalibrated = true;
 
-            byte[] buffer = Receive(sizeof(int) * 1);
+            byte[] buffer = new byte[sizeof(float) * 9];
+            Receive(buffer, sizeof(int) * 1);
             //currently not used
             int markerId = BitConverter.ToInt32(buffer, 0);
 
-            buffer = Receive(sizeof(float) * 9);
+            Receive(buffer, sizeof(float) * 9);
             Buffer.BlockCopy(buffer, 0, oWorldTransform.R, 0, sizeof(float) * 9);
 
-            buffer = Receive(sizeof(float) * 3);
+            Receive(buffer, sizeof(float) * 3);
             Buffer.BlockCopy(buffer, 0, oWorldTransform.t, 0, sizeof(float) * 3);
 
             oCameraPose.R = oWorldTransform.R;
@@ -217,10 +221,14 @@ namespace KinectServer
                     return;
             }
 
-            Recieve(buffer, nToRead);
+            Receive(buffer, nToRead);
 
             //oSocket.Receive(buffer, 16, SocketFlags.None);
             nToRead = BitConverter.ToInt32(buffer, 0);
+
+            if (nToRead <= 0)
+                return; 
+
             int iCompressed = BitConverter.ToInt32(buffer, 4);
             int iDepthWidth = BitConverter.ToInt32(buffer, 8);
             int iDepthHeight = BitConverter.ToInt32(buffer, 12);
@@ -235,8 +243,7 @@ namespace KinectServer
 
             buffer = new byte[nToRead];
 
-
-            Recieve(buffer, nToRead);
+            Receive(buffer, nToRead);
 
             if (iCompressed == 1)
                 buffer = ZSTDDecompressor.Decompress(buffer);
@@ -297,6 +304,7 @@ namespace KinectServer
         }
 
 
+        
         public byte[] Receive(int nBytes)
         {
             byte[] buffer;
@@ -310,7 +318,7 @@ namespace KinectServer
 
             return buffer;
         }
-
+        
         public bool SocketConnected()
         {
             bool part1 = oSocket.Poll(1000, SelectMode.SelectRead);
@@ -328,7 +336,18 @@ namespace KinectServer
 
         private void SendByte()
         {
-            oSocket.Send(byteToSend);
+            try
+            {
+                oSocket.Send(byteToSend);
+            }
+            catch(SocketException)
+            {
+                return;
+            }
+            catch(ObjectDisposedException)
+            {
+                return;
+            }
         }
 
         public void UpdateSocketState()

@@ -63,8 +63,7 @@ namespace KinectServer
         float[] cameraPosition = new float[3];
         float[] targetPosition = new float[3];
 
-        public List<float> vertices = new List<float>();
-        public List<byte> colors = new List<byte>();
+        public List<VertexC4ubV3f> vertices = new List<VertexC4ubV3f>();
         public List<AffineTransform> cameraPoses = new List<AffineTransform>();
         public List<Body> bodies = new List<Body>();
         public List<int> triangles = new List<int>();
@@ -75,15 +74,6 @@ namespace KinectServer
         int nTickCounter = 0;
 
         bool bDrawMarkings = true;
-
-        // this struct is used for drawing
-        struct VertexC4ubV3f
-        {
-            public byte R, G, B, A;
-            public Vector3 Position;
-
-            public static int SizeInBytes = 16;
-        }
 
         uint VBOHandle;
 
@@ -331,7 +321,7 @@ namespace KinectServer
             {
                 bool bShowSkeletons = settings.bShowSkeletons;
 
-                PointCount = vertices.Count / 3;
+                PointCount = vertices.Count;
                 LineCount = 0;
                 TriangleCount = triangles.Count / 3;
 
@@ -350,16 +340,19 @@ namespace KinectServer
 
                 VBO = new VertexC4ubV3f[PointCount + 2 * LineCount + 3 * TriangleCount];
 
-                for (int i = 0; i < PointCount; i++)
-                {
-                    VBO[i].R = (byte)Math.Max(0, Math.Min(255, (colors[i * 3] + brightnessModifier)));
-                    VBO[i].G = (byte)Math.Max(0, Math.Min(255, (colors[i * 3 + 1] + brightnessModifier)));
-                    VBO[i].B = (byte)Math.Max(0, Math.Min(255, (colors[i * 3 + 2] + brightnessModifier)));
-                    VBO[i].A = 255;
-                    VBO[i].Position.X = vertices[i * 3];
-                    VBO[i].Position.Y = vertices[i * 3 + 1];
-                    VBO[i].Position.Z = vertices[i * 3 + 2];
-                }
+                //for (int i = 0; i < PointCount; i++)
+                //{
+                VertexC4ubV3f[]verticesArray = vertices.ToArray();
+                /*VBO[i].R = (byte)Math.Max(0, Math.Min(255, (verticesArray[i].R  + brightnessModifier)));
+                VBO[i].G = (byte)Math.Max(0, Math.Min(255, (colors[i * 3 + 1] + brightnessModifier)));
+                VBO[i].B = (byte)Math.Max(0, Math.Min(255, (colors[i * 3 + 2] + brightnessModifier)));
+                VBO[i].A = 255;
+                VBO[i].Position.X = vertices[i]
+                VBO[i].Position.Y = vertices[i * 3 + 1];
+                VBO[i].Position.Z = vertices[i * 3 + 2];*/
+                if (PointCount > 0)
+                    Array.Copy(verticesArray, VBO, PointCount);
+                //}
                 
                 if (bDrawMarkings)
                 {
@@ -415,22 +408,18 @@ namespace KinectServer
 
         private void AddTriangles(int startIdx)
         {
-            float []verticesArray = vertices.ToArray();
-            byte[] colorsArray = colors.ToArray();
-            int endIdx = startIdx + TriangleCount * 3;
+            VertexC4ubV3f []verticesArray = vertices.ToArray();
+            int endIdx = startIdx + TriangleCount *  3;
+            if (endIdx - startIdx == 0)
+                return; 
+
             for (int i = startIdx; i < endIdx; i++)
             {
-                int v3 = 3 * triangles[i - startIdx];
-
-                VBO[i].Position.X = verticesArray[v3];
-                VBO[i].Position.Y = verticesArray[v3 + 1];
-                VBO[i].Position.Z = verticesArray[v3 + 2];
-
-                VBO[i].R = colorsArray[v3];
-                VBO[i].G = colorsArray[v3 + 1];
-                VBO[i].B = colorsArray[v3 + 2];
-                VBO[i].A = 255;
-            }      
+                int v = triangles[i - startIdx];
+                //Array.Copy(verticesArray, v, VBO, i, 1);
+                VBO[i] = verticesArray[v];
+            } 
+                 
         }
 
         private int AddBoundingBox(int startIdx)
@@ -691,13 +680,13 @@ namespace KinectServer
         private void AddLine(int startIdx, float x0, float y0, float z0, 
             float x1, float y1, float z1)
         {
-            VBO[startIdx].Position.X = x0;
-            VBO[startIdx].Position.Y = y0;
-            VBO[startIdx].Position.Z = z0;
+            VBO[startIdx].X = x0;
+            VBO[startIdx].Y = y0;
+            VBO[startIdx].Z = z0;
 
-            VBO[startIdx + 1].Position.X = x1;
-            VBO[startIdx + 1].Position.Y = y1;
-            VBO[startIdx + 1].Position.Z = z1;
+            VBO[startIdx + 1].X = x1;
+            VBO[startIdx + 1].Y = y1;
+            VBO[startIdx + 1].Z = z1;
         }
     }
 }

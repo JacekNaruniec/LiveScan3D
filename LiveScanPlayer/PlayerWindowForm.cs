@@ -179,9 +179,8 @@ namespace LiveScanPlayer
         {
             OpenGLWindow openGLWindow = new OpenGLWindow();
 
-            openGLWindow.vertices = lAllVertices;
-            openGLWindow.colors = lAllColors;
-
+            // TODO: fix!
+            //openGLWindow.vertices = lAllVertices;
             openGLWindow.Run();
         }
 
