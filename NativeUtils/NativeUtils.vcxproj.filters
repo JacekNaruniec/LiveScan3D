@@ -18,33 +18,33 @@
     <ClInclude Include="..\include\nanoflann.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\ICP\icp.h">
+    <ClInclude Include="..\include\NativeUtils\icp.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\ICP\depthprocessing.h">
+    <ClInclude Include="..\include\NativeUtils\depthprocessing.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\ICP\meshGenerator.h">
+    <ClInclude Include="..\include\NativeUtils\meshGenerator.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\ICP\pgm.h">
+    <ClInclude Include="..\include\NativeUtils\pgm.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\ICP\icp.cpp">
+    <ClCompile Include="..\src\NativeUtils\icp.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ICP\main.cpp">
+    <ClCompile Include="..\src\NativeUtils\main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ICP\depthprocessing.cpp">
+    <ClCompile Include="..\src\NativeUtils\depthprocessing.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ICP\meshGenerator.cpp">
+    <ClCompile Include="..\src\NativeUtils\meshGenerator.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ICP\pgm.cpp">
+    <ClCompile Include="..\src\NativeUtils\pgm.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

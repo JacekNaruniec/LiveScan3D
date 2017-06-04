@@ -25,7 +25,6 @@ using System.Threading;
 using System.Windows.Forms;
 using System.Globalization;
 using System.Runtime.Serialization;
-using System.Threading;
 
 using System.IO;
 using System.Net;

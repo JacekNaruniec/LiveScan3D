@@ -118,9 +118,9 @@ void pointProjection(Point3f &p, int &out_x, int &out_y, unsigned short &out_d, 
 	tmp.Y += wt.t[1];
 	tmp.Z += wt.t[2];
 
-	out_x = (tmp.X * ip.fx) / tmp.Z + ip.cx;
-	out_y = ip.cy - (tmp.Y * ip.fy) / tmp.Z;
-	out_d = min(max(0, (int)(tmp.Z * 1000.0f)), 65535);
+	out_x = static_cast<int>((tmp.X * ip.fx) / tmp.Z + ip.cx);
+	out_y = static_cast<int>(ip.cy - (tmp.Y * ip.fy) / tmp.Z);
+	out_d = static_cast<unsigned short>(min(max(0, (int)(tmp.Z * 1000.0f)), 65535));
 }
 
 void projectUnassignedVerticesIntoDepthMap(VerticesWithDepthColorMaps &vertices_with_maps, vector<int> &depth_to_vertices_map, WorldTranformation &wt, IntrinsicCameraParameters &ip, int w, int h)
@@ -152,7 +152,7 @@ void writeDepthImage(vector<unsigned short> &depth_image, int w, int h, string f
 
 	for (int i = 0; i < w; i++)
 		for (int j = 0; j < h; j++)
-			image[i + j*w] = depth_image[j * w + i];
+			image[i + j*w] = (unsigned char)depth_image[j * w + i];
 
 	writePGM(filename.c_str(), w, h, image.data());
 }
@@ -245,7 +245,7 @@ void generateTrianglesForVertices(vector<VerticesWithDepthColorMaps> &vertices_w
 		projectUnassignedVerticesIntoDepthMap(vertices_with_maps[current_map_index], depth_to_vertices_map, world_transform, intrinsic_params[current_map_index],
 			w, h);
 
-		char tmp[1024];
+		//char tmp[1024];
 		//sprintf(tmp, "test_depth_%d_1.pgm", current_map_index);
 		//writeDepthImage(vertices_with_maps[current_map_index].depth_map, w, h, tmp);
 

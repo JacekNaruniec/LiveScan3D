@@ -171,7 +171,7 @@ void Calibration::SaveCalibration()
 
 void Calibration::Procrustes(MarkerInfo &marker, vector<Point3f> &markerInWorld, vector<float> &worldToMarkerT, vector<vector<float>> &worldToMarkerR)
 {
-	int nVertices = marker.points.size();
+	int nVertices = (int)marker.points.size();
 
 	Point3f markerCenterInWorld;
 	Point3f markerCenter;

@@ -23,7 +23,7 @@ using System.Windows.Forms.Layout;
 using System.Diagnostics;
 
 using OpenTK;
-using OpenTK.Graphics;
+using OpenTK.Graphics.OpenGL;
 using OpenTK.Input;
 
 enum ECameraMode
@@ -79,7 +79,7 @@ namespace KinectServer
 
         /// <summary>Creates a 800x600 window with the specified title.</summary>
         public OpenGLWindow()
-            : base(800, 600, GraphicsMode.Default, "LiveScan")
+            : base(800, 600, OpenTK.Graphics.GraphicsMode.Default, "LiveScan")
         {
             this.VSync = VSyncMode.Off;
             MouseUp += new EventHandler<MouseButtonEventArgs>(OnMouseButtonUp);
@@ -180,8 +180,8 @@ namespace KinectServer
             GL.Hint(HintTarget.PointSmoothHint, HintMode.Nicest);
 
             // Setup VBO state
-            GL.EnableClientState(EnableCap.ColorArray);
-            GL.EnableClientState(EnableCap.VertexArray);
+            GL.EnableClientState(ArrayCap.ColorArray);
+            GL.EnableClientState(ArrayCap.VertexArray);
             
             GL.GenBuffers(1, out VBOHandle);
 
@@ -301,8 +301,8 @@ namespace KinectServer
                     CameraMode = ECameraMode.CAMERA_TRACK;
                     break;
             }
-            MousePrevious.X = Mouse.X;
-            MousePrevious.Y = Mouse.Y;
+            MousePrevious.X = OpenTK.Input.Mouse.GetCursorState().X;
+            MousePrevious.Y = OpenTK.Input.Mouse.GetCursorState().Y;
         }
 
         protected override void OnUpdateFrame(FrameEventArgs e)
@@ -397,9 +397,9 @@ namespace KinectServer
             // Fill newly allocated buffer
             GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(VertexC4ubV3f.SizeInBytes * (PointCount + 2 * LineCount + 3 * TriangleCount)), VBO, BufferUsageHint.StreamDraw);
 
-            GL.DrawArrays(BeginMode.Points, 0, PointCount);
-            GL.DrawArrays(BeginMode.Lines, PointCount, 2 * LineCount);
-            GL.DrawArrays(BeginMode.Triangles, PointCount + 2 *LineCount, 3 * TriangleCount);
+            GL.DrawArrays(PrimitiveType.Points, 0, PointCount);
+            GL.DrawArrays(PrimitiveType.Lines, PointCount, 2 * LineCount);
+            GL.DrawArrays(PrimitiveType.Triangles, PointCount + 2 *LineCount, 3 * TriangleCount);
 
             GL.PopMatrix();
 
