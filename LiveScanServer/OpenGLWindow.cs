@@ -301,8 +301,8 @@ namespace KinectServer
                     CameraMode = ECameraMode.CAMERA_TRACK;
                     break;
             }
-            MousePrevious.X = OpenTK.Input.Mouse.GetCursorState().X;
-            MousePrevious.Y = OpenTK.Input.Mouse.GetCursorState().Y;
+            MousePrevious.X = e.X;  //OpenTK.Input.Mouse.GetCursorState().X;
+            MousePrevious.Y = e.Y;  //OpenTK.Input.Mouse.GetCursorState().Y;
         }
 
         protected override void OnUpdateFrame(FrameEventArgs e)
@@ -340,19 +340,9 @@ namespace KinectServer
 
                 VBO = new VertexC4ubV3f[PointCount + 2 * LineCount + 3 * TriangleCount];
 
-                //for (int i = 0; i < PointCount; i++)
-                //{
                 VertexC4ubV3f[]verticesArray = vertices.ToArray();
-                /*VBO[i].R = (byte)Math.Max(0, Math.Min(255, (verticesArray[i].R  + brightnessModifier)));
-                VBO[i].G = (byte)Math.Max(0, Math.Min(255, (colors[i * 3 + 1] + brightnessModifier)));
-                VBO[i].B = (byte)Math.Max(0, Math.Min(255, (colors[i * 3 + 2] + brightnessModifier)));
-                VBO[i].A = 255;
-                VBO[i].Position.X = vertices[i]
-                VBO[i].Position.Y = vertices[i * 3 + 1];
-                VBO[i].Position.Z = vertices[i * 3 + 2];*/
                 if (PointCount > 0)
                     Array.Copy(verticesArray, VBO, PointCount);
-                //}
                 
                 if (bDrawMarkings)
                 {
