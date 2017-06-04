@@ -25,6 +25,7 @@ using System.Threading;
 using System.Windows.Forms;
 using System.Globalization;
 using System.Runtime.Serialization;
+using System.Threading;
 
 using System.IO;
 using System.Net;
@@ -196,44 +197,24 @@ namespace KinectServer
             //This loop is running till it is either cancelled (using the btRecord button), or till there are no more stored frames.
             while (!worker.CancellationPending)
             {
-                List<List<byte>> lFrameRGBAllDevices = new List<List<byte>>();
-                List<List<float>> lFrameVertsAllDevices = new List<List<float>>();
+                List<VertexC4ubV3f> lVerticesWithColors = new List<VertexC4ubV3f>();
+                List<int> lTriangles = new List<int>();
 
-                bool success = oServer.GetStoredFrame(lFrameRGBAllDevices, lFrameVertsAllDevices);
+                bool success = oServer.GetStoredFrame(lVerticesWithColors, lTriangles);
 
                 //This indicates that there are no more stored frames.
                 if (!success)
                     break;
 
                 nFrames++;
-                int nVerticesTotal = 0;
-                for (int i = 0; i < lFrameRGBAllDevices.Count; i++)
-                {
-                    nVerticesTotal += lFrameVertsAllDevices[i].Count;
-                }
-
-                List<byte> lFrameRGB = new List<byte>();
-                List<Single> lFrameVerts = new List<Single>();
 
                 SetStatusBarOnTimer("Saving frame " + (nFrames).ToString() + ".", 5000);
-                for (int i = 0; i < lFrameRGBAllDevices.Count; i++)
-                {                                 
-                    lFrameRGB.AddRange(lFrameRGBAllDevices[i]);
-                    lFrameVerts.AddRange(lFrameVertsAllDevices[i]);
-
-                    //This is ran if the frames from each client are to be placed in separate files.
-                    if (!oSettings.bMergeScansForSave)
-                    {
-                        string outputFilename = outDir + "\\" + nFrames.ToString().PadLeft(5, '0') + i.ToString() + ".ply";
-                        Utils.saveToPly(outputFilename, lFrameVertsAllDevices[i], lFrameRGBAllDevices[i], oSettings.bSaveAsBinaryPLY);                        
-                    }
-                }
 
                 //This is ran if the frames from all clients are to be placed in a single file.
                 if (oSettings.bMergeScansForSave)
                 {
                     string outputFilename = outDir + "\\" + nFrames.ToString().PadLeft(5, '0') + ".ply";
-                    Utils.saveToPly(outputFilename, lFrameVerts, lFrameRGB, oSettings.bSaveAsBinaryPLY);
+                    Utils.saveToPly(outputFilename, lVerticesWithColors, lTriangles, oSettings.bSaveAsBinaryPLY);
                 }
             }
         }
@@ -528,8 +509,8 @@ namespace KinectServer
 
             for (int i = 0; i < socketList.Count; i++)
                 listBoxItems.Add(socketList[i].sSocketState);
-
-            lClientListBox.DataSource = listBoxItems;
+            if (!lClientListBox.IsDisposed)
+                this.BeginInvoke(new Action(() => lClientListBox.DataSource = listBoxItems));
         }
     }
 }

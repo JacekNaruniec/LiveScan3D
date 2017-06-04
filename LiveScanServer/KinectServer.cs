@@ -278,11 +278,11 @@ namespace KinectServer
             }
         }
 
-        public bool GetStoredFrame(List<List<byte>> lFramesRGB, List<List<Single>> lFramesVerts)
+        public bool GetStoredFrame(List<VertexC4ubV3f> lVerticesWithColors, List<int> lFrameTriangles)
         {
             bool bNoMoreStoredFrames;
-            lFramesRGB.Clear();
-            lFramesVerts.Clear();
+            lVerticesWithColors.Clear();
+            lFrameTriangles.Clear();
 
             lock (oFrameRequestLock)
             {
@@ -296,18 +296,16 @@ namespace KinectServer
                 //Wait till frames received
                 bool allGathered = false;
                 bNoMoreStoredFrames = false;
-                while (!allGathered)
+                while (!allGathered && !bNoMoreStoredFrames)
                 {
                     allGathered = true;
                     lock (oClientSocketLock)
                     {
                         for (int i = 0; i < lClientSockets.Count; i++)
                         {
-                            if (!lClientSockets[i].bStoredFrameReceived)
-                            {
+                            if (!lClientSockets[i].bStoredFrameReceived)                 
                                 allGathered = false;
-                                break;
-                            }
+                            
 
                             if (lClientSockets[i].bNoMoreStoredFrames)
                                 bNoMoreStoredFrames = true;
@@ -315,14 +313,10 @@ namespace KinectServer
                     }
                 }
 
-                //Store received frames
-                lock (oClientSocketLock)
+                if (!bNoMoreStoredFrames)
                 {
-                    for (int i = 0; i < lClientSockets.Count; i++)
-                    {
-                        lFramesRGB.Add(new List<byte>(lClientSockets[i].lFrameRGB));
-                        lFramesVerts.Add(new List<Single>(lClientSockets[i].lFrameVerts));
-                    }
+                    CopyLatestFrames();
+                    GenerateMesh(lVerticesWithColors, lFrameTriangles);
                 }
             }
 
@@ -640,6 +634,11 @@ namespace KinectServer
                             else if (buffer[0] == 4)
                             {
                                 lClientSockets[i].ReceiveCameraIntrinsicParameters();
+                            }
+                            else if (buffer[0] == 5)
+                            {
+                                lClientSockets[i].bNoMoreStoredFrames = true;
+                                lClientSockets[i].bWaitingForFrame = false;
                             }
 
                             buffer = lClientSockets[i].Receive(1);

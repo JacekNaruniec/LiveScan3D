@@ -16,7 +16,9 @@ public:
 	// leave filename blank if you want the filename to be generated from the date
 	void setCurrentFilename(std::string filename = ""); 
 
+	void writeFrame(std::vector<unsigned char> &frameBuffer);
 	void writeFrame(std::vector<Point3s> points, std::vector<RGB> colors);
+	bool readFrame(std::vector<unsigned char> &frameBuffer);
 	bool readFrame(std::vector<Point3s> &outPoints, std::vector<RGB> &outColors);
 
 	bool openedForWriting() { return m_bFileOpenedForWriting; }

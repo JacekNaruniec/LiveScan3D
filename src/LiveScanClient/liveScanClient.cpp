@@ -282,7 +282,6 @@ void LiveScanClient::SerializeFrame(const UINT16* depthBuffer, RGB *color, Point
 		memcpy(frameBuffer.data() + 4, (char*)&iCompression, sizeof(iCompression));
 		memcpy(frameBuffer.data() + 8, (char*)&dw, sizeof(dw));
 		memcpy(frameBuffer.data() + 12, (char*)&dh, sizeof(dh));
-
 		memcpy(frameBuffer.data() + 16, tempBuffer.data(), size);
 	}
 }
@@ -312,8 +311,7 @@ void LiveScanClient::UpdateFrame()
 		SerializeFrame(pCapture->pDepth,pCapture->pColorRGBX, m_pColorCoordinatesOfDepth, pCapture->vBodies);
 		if (m_bCaptureFrame)
 		{
-			// TODO: write depth and color images 
-			//m_framesFileWriterReader.writeFrame(m_vLastFrameVertices, m_vLastFrameRGB);
+			m_framesFileWriterReader.writeFrame(frameBuffer);
 			m_bConfirmCaptured = true;
 			m_bCaptureFrame = false;
 		}
@@ -638,19 +636,16 @@ void LiveScanClient::HandleSocket()
 		//send stored frame
 		else if (received[i] == MSG_REQUEST_STORED_FRAME)
 		{
-			byteToSend = MSG_STORED_FRAME;
-			m_pClientSocket->SendBytes(&byteToSend, 1);
-
-			vector<Point3s> points;
-			vector<RGB> colors; 
-			bool res = m_framesFileWriterReader.readFrame(points, colors);
+			bool res = m_framesFileWriterReader.readFrame(frameBuffer);
 			if (res == false)
 			{
-				int size = -1;
-				m_pClientSocket->SendBytes((char*)&size, 4);
+				int msg = MSG_NO_MORE_STORED_FRAMES;
+				m_pClientSocket->SendBytes((char*)&msg, sizeof(msg));
 			}
 			else
 			{		
+				byteToSend = MSG_STORED_FRAME;
+				m_pClientSocket->SendBytes(&byteToSend, 1);
 				SendFrame(frameBuffer);
 			}
 		}

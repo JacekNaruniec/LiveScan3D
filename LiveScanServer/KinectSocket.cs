@@ -218,7 +218,10 @@ namespace KinectServer
             while (oSocket.Available == 0)
             {
                 if (!SocketConnected())
+                {
+                    bNoMoreStoredFrames = true;
                     return;
+                }
             }
 
             Receive(buffer, nToRead);
@@ -227,19 +230,16 @@ namespace KinectServer
             nToRead = BitConverter.ToInt32(buffer, 0);
 
             if (nToRead <= 0)
-                return; 
+            {
+                bNoMoreStoredFrames = true;
+                return;
+            }
 
             int iCompressed = BitConverter.ToInt32(buffer, 4);
             int iDepthWidth = BitConverter.ToInt32(buffer, 8);
             int iDepthHeight = BitConverter.ToInt32(buffer, 12);
             iDepthFrameWidth = iDepthWidth;
             iDepthFrameHeight = iDepthHeight;
-
-            if (nToRead == -1)
-            {
-                bNoMoreStoredFrames = true;
-                return;
-            }
 
             buffer = new byte[nToRead];
 

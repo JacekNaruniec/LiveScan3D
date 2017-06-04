@@ -56,6 +56,31 @@ void FrameFileWriterReader::openNewFileForWriting()
 	resetTimer();
 }
 
+bool FrameFileWriterReader::readFrame(std::vector<unsigned char> &frameBuffer)
+{
+	if (!m_bFileOpenedForReading)
+		openCurrentFileForReading();
+
+
+	FILE *f = m_pFileHandle;
+	int bufferSize, timestamp;
+	char tmp[1024];
+	int nread = fscanf_s(f, "%s %d %s %d", tmp, 1024, &bufferSize, tmp, 1024, &timestamp);
+
+	if (nread < 4)
+		return false;
+	frameBuffer.resize(bufferSize);
+
+	if (bufferSize == 0)
+		return true;
+
+	fgetc(f);		//  '\n'
+
+	fread((void*)frameBuffer.data(), sizeof(frameBuffer[0]), bufferSize, f);
+	fgetc(f);		// '\n'
+	return true;
+}
+
 bool FrameFileWriterReader::readFrame(std::vector<Point3s> &outPoints, std::vector<RGB> &outColors)
 {
 	if (!m_bFileOpenedForReading)
@@ -85,6 +110,21 @@ bool FrameFileWriterReader::readFrame(std::vector<Point3s> &outPoints, std::vect
 
 }
 
+void FrameFileWriterReader::writeFrame(std::vector<unsigned char> &frameBuffer)
+{
+	if (!m_bFileOpenedForWriting)
+		openNewFileForWriting();
+
+	FILE *f = m_pFileHandle;
+
+	int bufferSize = static_cast<int>(frameBuffer.size());
+	fprintf(f, "bufferSize= %d\nframe_timestamp= %d\n", bufferSize, getRecordingTimeMilliseconds());
+	if (bufferSize > 0)
+		fwrite((void*)frameBuffer.data(), sizeof(frameBuffer[0]), bufferSize, f);
+	
+	fprintf(f, "\n");
+
+}
 
 void FrameFileWriterReader::writeFrame(std::vector<Point3s> points, std::vector<RGB> colors)
 {

@@ -218,16 +218,92 @@ namespace KinectServer
             binaryWriter.Flush();
             fileStream.Close();
         }
-    }
-    /*
-    public struct VertexWithColour
-    {
-        public byte R, G, B, A;
-        public float v1, v2, v3; 
-    }*/
 
-    // this struct is used for drawing
-    public struct VertexC4ubV3f
+        public static void saveToPly(string filename, List<VertexC4ubV3f> verticesWithColors, List<int> triangles, bool binary)
+        {
+            int nVertices = verticesWithColors.Count;
+            int nTriangles = triangles.Count / 3;
+
+            FileStream fileStream = File.Open(filename, FileMode.Create);
+
+            System.IO.StreamWriter streamWriter = new System.IO.StreamWriter(fileStream);
+            System.IO.BinaryWriter binaryWriter = new System.IO.BinaryWriter(fileStream);
+
+            //PLY file header is written here.
+            if (binary)
+                streamWriter.WriteLine("ply\nformat binary_little_endian 1.0");
+            else
+                streamWriter.WriteLine("ply\nformat ascii 1.0\n");
+            streamWriter.Write("element vertex " + nVertices.ToString() + "\n");
+            streamWriter.Write("property float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n");
+            streamWriter.Write("element face " + nTriangles.ToString() + "\n");
+            streamWriter.Write("property list uchar int vertex_index\n");
+            streamWriter.Write("end_header\n");
+            streamWriter.Flush();
+
+            //Vertex and color data are written here.
+            if (binary)
+            {
+                for (int j = 0; j < verticesWithColors.Count; j++)
+                {
+                    binaryWriter.Write(verticesWithColors[j].X);
+                    binaryWriter.Write(verticesWithColors[j].Y);
+                    binaryWriter.Write(verticesWithColors[j].Z);
+
+                    binaryWriter.Write(verticesWithColors[j].R);
+                    binaryWriter.Write(verticesWithColors[j].G);
+                    binaryWriter.Write(verticesWithColors[j].B);
+                }
+
+                for (int j=0; j< nTriangles; j++)
+                {
+                    binaryWriter.Write((byte)3);
+                    binaryWriter.Write(triangles[j * 3]);
+                    binaryWriter.Write(triangles[j * 3 + 1]);
+                    binaryWriter.Write(triangles[j * 3 + 2]);
+                }
+            }
+            else
+            {
+                for (int j = 0; j < verticesWithColors.Count; j++)
+                {
+                    string s = "";
+
+                    s += verticesWithColors[j].X.ToString(CultureInfo.InvariantCulture) + " ";
+                    s += verticesWithColors[j].Y.ToString(CultureInfo.InvariantCulture) + " ";
+                    s += verticesWithColors[j].Z.ToString(CultureInfo.InvariantCulture) + " ";
+                    s += verticesWithColors[j].R.ToString(CultureInfo.InvariantCulture) + " ";
+                    s += verticesWithColors[j].G.ToString(CultureInfo.InvariantCulture) + " ";
+                    s += verticesWithColors[j].B.ToString(CultureInfo.InvariantCulture) + " ";
+
+                    streamWriter.WriteLine(s);
+                }
+                for (int j = 0; j < nTriangles; j++)
+                {
+                    string s = "3 ";
+                    s += triangles[j * 3].ToString();
+                    s += triangles[j * 3 + 1].ToString();
+                    s += triangles[j * 3 + 2].ToString();
+                    streamWriter.WriteLine(s);
+                }
+            }
+            streamWriter.Flush();
+            binaryWriter.Flush();
+            fileStream.Close();
+        }
+    }
+
+
+  
+/*
+public struct VertexWithColour
+{
+    public byte R, G, B, A;
+    public float v1, v2, v3; 
+}*/
+
+// this struct is used for drawing
+public struct VertexC4ubV3f
     {
         public byte R, G, B, A;
         public float X, Y, Z;
