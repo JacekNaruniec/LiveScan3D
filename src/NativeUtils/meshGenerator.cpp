@@ -9,76 +9,11 @@ MeshGenerator::MeshGenerator()
 
 }
 
-vector<TriangleIndexes> MeshGenerator::generateTriangles(UINT16 *depth_image, vector<int> &depth_to_vertices_map, int ndepth_frame_width, int ndepth_frame_height)
-{
-	int n_depth_pixels = ndepth_frame_height * ndepth_frame_width;
-	vector<TriangleIndexes> indexes(n_depth_pixels * 2);
-	const int pixels_shifts[] = {0, 1, ndepth_frame_width, ndepth_frame_width + 1};
-	const int npixel_shifts = 4;
-	const int depth_threshold = 20;
-
-	int n_triangles = 0;
-
-	int triangles[4][4] = { {0, 1, 2}, {1, 2, 3}, {0, 1, 3}, {0, 2, 3} };
-
-	for (int y = 0; y < ndepth_frame_height - 1; y++)
-	{
-		UINT16 *depth_row = depth_image + y * ndepth_frame_width;
-		int *map_row = depth_to_vertices_map.data() + y * ndepth_frame_width;
-		for (int x = 0; x < ndepth_frame_width - 1; x++)
-		{
-			if (map_row[x] == -1)
-				continue;
-		
-			UINT16 vals[4];
-			int maps[4];
-			for (int i = 0; i < 4; i++)
-			{
-				vals[i] = depth_row[x + pixels_shifts[i]];
-				maps[i] = map_row[x + pixels_shifts[i]];
-			}
-
-			bool d[4][4];
-			for (int i = 0; i < 4; i++)
-				for (int j = i; j < 4; j++)
-					d[i][j] = abs(vals[i] - vals[j]) < depth_threshold;
-
-			bool t[] = { false, false, false, false };
-
-			if (maps[1] != -1 && maps[2] != -1)
-			{
-				if (d[0][1] && d[0][2] && d[1][2]) t[0] = true;
-
-				if (maps[3] != -1 && d[1][3] &&	d[2][3] && d[1][2]) t[1] = true;
-			}
-
-			if (t[0] == false && t[1] == false && maps[3] != -1)
-			{
-				if (maps[1] != -1 && d[0][1] && d[1][3] && d[0][3]) t[2] = true;
-
-				if (maps[2] != -1 && d[0][2] && d[2][3] && d[0][3]) t[3] = true;
-			}
-
-			for (int i=0; i<4; i++)
-				if (t[i])
-				{
-					indexes[n_triangles].ind[0] = maps[triangles[i][0]];
-					indexes[n_triangles].ind[1] = maps[triangles[i][1]];
-					indexes[n_triangles].ind[2] = maps[triangles[i][2]];
-					n_triangles++;
-				}
-		}
-	}
-
-	indexes.resize(n_triangles);
-	return indexes; 
-}
-
 bool MeshGenerator::checkTriangleConstraints(UINT16 *depth_ptr1, UINT16 *depth_ptr2, UINT16 *depth_ptr3)
 {
 	UINT16 vals[3] = { *depth_ptr1, *depth_ptr2, *depth_ptr3 };
 	UINT16 *ptrs[3] = { depth_ptr1, depth_ptr2, depth_ptr3 };
-	//const int depth_thr = 10;
+
 	const int pairs_1[] = { 0, 1, 2 };
 	const int pairs_2[] = { 1, 2, 0 };
 
@@ -122,6 +57,20 @@ bool MeshGenerator::checkTriangleConstraints(UINT16 *depth_ptr1, UINT16 *depth_p
 
 	return true;
 }
+
+
+int MeshGenerator::getNTrianglesPassingConditions(UINT16 *initialPos, int w)
+{
+	const int pixel_shifts[] = { -1, -w - 1, -w };
+	int n = 0;
+
+	if (checkTriangleConstraints(initialPos, initialPos + pixel_shifts[0], initialPos + pixel_shifts[2])) n++;
+	if (checkTriangleConstraints(initialPos + pixel_shifts[2], initialPos + pixel_shifts[0], initialPos + pixel_shifts[1])) n++;
+	if (checkTriangleConstraints(initialPos, initialPos + pixel_shifts[0], initialPos + pixel_shifts[1])) n++;
+	if (checkTriangleConstraints(initialPos, initialPos + pixel_shifts[1], initialPos + pixel_shifts[2])) n++;
+	return n;
+}
+
 
 vector<TriangleIndexes> MeshGenerator::generateTrianglesGradients(UINT16 *depth_image, vector<int> &depth_to_vertices_map, int ndepth_frame_width, int ndepth_frame_height)
 {

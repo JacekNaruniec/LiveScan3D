@@ -247,6 +247,7 @@ namespace KinectServer
                 //oServer.RequestLastFrames();
                 oServer.CopyLatestFrames();
                 oServer.RequestLastFrames();
+                oServer.CorrectRadialDistortionsForDepthMaps();
                 oServer.GenerateAndGetMesh(lFramesVerts, lFramesBody, lFramesTriangles);
 
                 //Update the vertex and color lists that are common between this class and the OpenGLWindow.

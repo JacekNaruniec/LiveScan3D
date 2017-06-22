@@ -683,9 +683,9 @@ void LiveScanClient::HandleSocket()
 			byteToSend = MSG_CAMERA_INTRINSIC_PARAMETERS;
 			m_pClientSocket->SendBytes(&byteToSend, 1);
 
-			int size = 7 * sizeof(float) + 1;
+			const int size = 7 * sizeof(float) + 1;
 
-			char *buffer = new char[size];
+			char buffer[size];
 			int i = 0;
 			memcpy(buffer + i, &pCapture->sCameraIntrinsics.PrincipalPointX, 1 * sizeof(float));
 			i += 1 * sizeof(int);
@@ -718,8 +718,8 @@ void LiveScanClient::HandleSocket()
 
 	if (m_bConfirmCalibrated)
 	{
-		int size = (9 + 3) * sizeof(float) + sizeof(int) + 1;
-		char *buffer = new char[size];
+		const int size = (9 + 3) * sizeof(float) + sizeof(int) + 1;
+		char buffer[size];
 		buffer[0] = MSG_CONFIRM_CALIBRATED;
 		int i = 1;
 

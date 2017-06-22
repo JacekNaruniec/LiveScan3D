@@ -37,8 +37,12 @@ namespace KinectServer
             int[] widths, int[] heights, float[] iparams, float[] tparams, ref Mesh out_mesh);
 
         [DllImport("NativeUtils.dll")]
-        static extern void generateTrainglesWithColorsFromDepthMap(int n_maps, byte[] depth_maps, byte[] depth_colors,
+        static extern void generateTrianglesWithColorsFromDepthMap(int n_maps, byte[] depth_maps, byte[] depth_colors,
             int[] widths, int[] heights, float[] iparams, float[] tparams, ref Mesh out_mesh, int depth_map_index);
+
+        [DllImport("NativeUtils.dll")]
+        static extern void depthMapAndColorSetRadialCorrection(int n_maps, byte[] depth_maps, byte[] depth_colors,
+            int[] widths, int[] heights, float[] iparams);
 
 
         [DllImport("NativeUtils.dll")]
@@ -316,6 +320,7 @@ namespace KinectServer
                 if (!bNoMoreStoredFrames)
                 {
                     CopyLatestFrames();
+                    CorrectRadialDistortionsForDepthMaps();
                     GenerateMesh(lVerticesWithColors, lFrameTriangles);
                 }
             }
@@ -496,15 +501,25 @@ namespace KinectServer
         {
             RequestLastFrames();
             CopyLatestFrames();
+            CorrectRadialDistortionsForDepthMaps();
             GenerateMesh(lFrameVerts, lFramesTriagles);
             lFramesBody = new List<List<Body>>(lStoredBodies);
+        }
+
+        public void CorrectRadialDistortionsForDepthMaps()
+        {
+            int nClients = nFramesCopied;
+
+            if (nClients == 0)
+                return;
+            depthMapAndColorSetRadialCorrection(nClients, depthMaps, depthColors, widths, heights, intrinsicsParams);
         }
 
         public void GetLatestFrameVerticesOnly(List<List<VertexC4ubV3f>> lFrameVerts)
         {
             RequestLastFrames();
             CopyLatestFrames();
-
+            CorrectRadialDistortionsForDepthMaps();
 
             int nClients = nFramesCopied;
             lFrameVerts.Clear();
@@ -517,7 +532,7 @@ namespace KinectServer
                 lFrameVerts.Add(new List<VertexC4ubV3f>());
                 Mesh mesh = new Mesh();
                 mesh.nVertices = 0;
-                generateTrainglesWithColorsFromDepthMap(nClients, depthMaps, depthColors, widths, heights, intrinsicsParams, transformParams, ref mesh, i);
+                generateTrianglesWithColorsFromDepthMap(nClients, depthMaps, depthColors, widths, heights, intrinsicsParams, transformParams, ref mesh, i);
                 lFrameVerts[i].AddRange(CopyMeshToVerticesWithColours(mesh));
                 deleteMesh(ref mesh);
             }
