@@ -66,6 +66,12 @@
             this.lbY = new System.Windows.Forms.Label();
             this.lbX = new System.Windows.Forms.Label();
             this.grFiltering = new System.Windows.Forms.GroupBox();
+            this.txtFPFilteringNeighbourhood = new System.Windows.Forms.TextBox();
+            this.txtFPNMaxNonFitting = new System.Windows.Forms.TextBox();
+            this.txtFPMaxDistance = new System.Windows.Forms.TextBox();
+            this.label4 = new System.Windows.Forms.Label();
+            this.label3 = new System.Windows.Forms.Label();
+            this.label1 = new System.Windows.Forms.Label();
             this.cbFilterFlyingPixels = new System.Windows.Forms.CheckBox();
             this.txtFilterNeighbors = new System.Windows.Forms.TextBox();
             this.chFilter = new System.Windows.Forms.CheckBox();
@@ -80,12 +86,7 @@
             this.rAsciiPly = new System.Windows.Forms.RadioButton();
             this.txtRefinIters = new System.Windows.Forms.TextBox();
             this.lbOuterIters = new System.Windows.Forms.Label();
-            this.label1 = new System.Windows.Forms.Label();
-            this.label3 = new System.Windows.Forms.Label();
-            this.label4 = new System.Windows.Forms.Label();
-            this.txtFPMaxDistance = new System.Windows.Forms.TextBox();
-            this.txtFPNMaxNonFitting = new System.Windows.Forms.TextBox();
-            this.txtFPFilteringNeighbourhood = new System.Windows.Forms.TextBox();
+            this.cbColorTransfer = new System.Windows.Forms.CheckBox();
             this.grClient.SuspendLayout();
             this.grBody.SuspendLayout();
             this.grMarkers.SuspendLayout();
@@ -519,6 +520,57 @@
             this.grFiltering.TabStop = false;
             this.grFiltering.Text = "Filtering";
             // 
+            // txtFPFilteringNeighbourhood
+            // 
+            this.txtFPFilteringNeighbourhood.Location = new System.Drawing.Point(244, 228);
+            this.txtFPFilteringNeighbourhood.Name = "txtFPFilteringNeighbourhood";
+            this.txtFPFilteringNeighbourhood.Size = new System.Drawing.Size(100, 26);
+            this.txtFPFilteringNeighbourhood.TabIndex = 29;
+            this.txtFPFilteringNeighbourhood.TextChanged += new System.EventHandler(this.txtFPFilteringNeighbourhood_TextChanged);
+            // 
+            // txtFPNMaxNonFitting
+            // 
+            this.txtFPNMaxNonFitting.Location = new System.Drawing.Point(244, 198);
+            this.txtFPNMaxNonFitting.Name = "txtFPNMaxNonFitting";
+            this.txtFPNMaxNonFitting.Size = new System.Drawing.Size(100, 26);
+            this.txtFPNMaxNonFitting.TabIndex = 28;
+            this.txtFPNMaxNonFitting.TextChanged += new System.EventHandler(this.txtFPNMaxNonFitting_TextChanged);
+            // 
+            // txtFPMaxDistance
+            // 
+            this.txtFPMaxDistance.Location = new System.Drawing.Point(244, 169);
+            this.txtFPMaxDistance.Name = "txtFPMaxDistance";
+            this.txtFPMaxDistance.Size = new System.Drawing.Size(100, 26);
+            this.txtFPMaxDistance.TabIndex = 27;
+            this.txtFPMaxDistance.TextChanged += new System.EventHandler(this.txtFPMaxDistance_TextChanged);
+            // 
+            // label4
+            // 
+            this.label4.AutoSize = true;
+            this.label4.Location = new System.Drawing.Point(17, 235);
+            this.label4.Name = "label4";
+            this.label4.Size = new System.Drawing.Size(208, 20);
+            this.label4.TabIndex = 26;
+            this.label4.Text = "Filtering neighbourhood size";
+            // 
+            // label3
+            // 
+            this.label3.AutoSize = true;
+            this.label3.Location = new System.Drawing.Point(16, 205);
+            this.label3.Name = "label3";
+            this.label3.Size = new System.Drawing.Size(175, 20);
+            this.label3.TabIndex = 25;
+            this.label3.Text = "N max non-fitting points";
+            // 
+            // label1
+            // 
+            this.label1.AutoSize = true;
+            this.label1.Location = new System.Drawing.Point(16, 175);
+            this.label1.Name = "label1";
+            this.label1.Size = new System.Drawing.Size(177, 20);
+            this.label1.TabIndex = 24;
+            this.label1.Text = "Max neighbour distance";
+            // 
             // cbFilterFlyingPixels
             // 
             this.cbFilterFlyingPixels.AutoSize = true;
@@ -597,7 +649,7 @@
             this.grServer.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             this.grServer.Name = "grServer";
             this.grServer.Padding = new System.Windows.Forms.Padding(4, 5, 4, 5);
-            this.grServer.Size = new System.Drawing.Size(948, 175);
+            this.grServer.Size = new System.Drawing.Size(502, 175);
             this.grServer.TabIndex = 44;
             this.grServer.TabStop = false;
             this.grServer.Text = "KinectServer settings";
@@ -688,62 +740,23 @@
             this.lbOuterIters.TabIndex = 26;
             this.lbOuterIters.Text = "Num of refinement iters:";
             // 
-            // label1
+            // cbColorTransfer
             // 
-            this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(16, 175);
-            this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(177, 20);
-            this.label1.TabIndex = 24;
-            this.label1.Text = "Max neighbour distance";
-            // 
-            // label3
-            // 
-            this.label3.AutoSize = true;
-            this.label3.Location = new System.Drawing.Point(16, 205);
-            this.label3.Name = "label3";
-            this.label3.Size = new System.Drawing.Size(175, 20);
-            this.label3.TabIndex = 25;
-            this.label3.Text = "N max non-fitting points";
-            // 
-            // label4
-            // 
-            this.label4.AutoSize = true;
-            this.label4.Location = new System.Drawing.Point(17, 235);
-            this.label4.Name = "label4";
-            this.label4.Size = new System.Drawing.Size(208, 20);
-            this.label4.TabIndex = 26;
-            this.label4.Text = "Filtering neighbourhood size";
-            // 
-            // txtFPMaxDistance
-            // 
-            this.txtFPMaxDistance.Location = new System.Drawing.Point(244, 169);
-            this.txtFPMaxDistance.Name = "txtFPMaxDistance";
-            this.txtFPMaxDistance.Size = new System.Drawing.Size(100, 26);
-            this.txtFPMaxDistance.TabIndex = 27;
-            this.txtFPMaxDistance.TextChanged += new System.EventHandler(this.txtFPMaxDistance_TextChanged);
-            // 
-            // txtFPNMaxNonFitting
-            // 
-            this.txtFPNMaxNonFitting.Location = new System.Drawing.Point(244, 198);
-            this.txtFPNMaxNonFitting.Name = "txtFPNMaxNonFitting";
-            this.txtFPNMaxNonFitting.Size = new System.Drawing.Size(100, 26);
-            this.txtFPNMaxNonFitting.TabIndex = 28;
-            this.txtFPNMaxNonFitting.TextChanged += new System.EventHandler(this.txtFPNMaxNonFitting_TextChanged);
-            // 
-            // txtFPFilteringNeighbourhood
-            // 
-            this.txtFPFilteringNeighbourhood.Location = new System.Drawing.Point(244, 228);
-            this.txtFPFilteringNeighbourhood.Name = "txtFPFilteringNeighbourhood";
-            this.txtFPFilteringNeighbourhood.Size = new System.Drawing.Size(100, 26);
-            this.txtFPFilteringNeighbourhood.TabIndex = 29;
-            this.txtFPFilteringNeighbourhood.TextChanged += new System.EventHandler(this.txtFPFilteringNeighbourhood_TextChanged);
+            this.cbColorTransfer.AutoSize = true;
+            this.cbColorTransfer.Location = new System.Drawing.Point(541, 522);
+            this.cbColorTransfer.Name = "cbColorTransfer";
+            this.cbColorTransfer.Size = new System.Drawing.Size(289, 24);
+            this.cbColorTransfer.TabIndex = 45;
+            this.cbColorTransfer.Text = "Enable color transfer between views";
+            this.cbColorTransfer.UseVisualStyleBackColor = true;
+            this.cbColorTransfer.CheckedChanged += new System.EventHandler(this.cbColorTransfer_CheckedChanged);
             // 
             // SettingsForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(9F, 20F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(984, 707);
+            this.Controls.Add(this.cbColorTransfer);
             this.Controls.Add(this.grServer);
             this.Controls.Add(this.grClient);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
@@ -764,6 +777,7 @@
             this.grServer.ResumeLayout(false);
             this.grServer.PerformLayout();
             this.ResumeLayout(false);
+            this.PerformLayout();
 
         }
 
@@ -827,5 +841,6 @@
         private System.Windows.Forms.TextBox txtFPNMaxNonFitting;
         private System.Windows.Forms.TextBox txtFPMaxDistance;
         private System.Windows.Forms.Label label4;
+        private System.Windows.Forms.CheckBox cbColorTransfer;
     }
 }

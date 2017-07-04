@@ -45,6 +45,7 @@ namespace KinectServer
             txtMaxY.Text = oSettings.aMaxBounds[1].ToString(CultureInfo.InvariantCulture);
             txtMaxZ.Text = oSettings.aMaxBounds[2].ToString(CultureInfo.InvariantCulture);
 
+            cbColorTransfer.Checked = oSettings.bColorTransfer;
             cbFilterFlyingPixels.Checked = oSettings.bFilterFlyingPixels;
             txtFPFilteringNeighbourhood.Text = oSettings.nFPNeighbourhoodSize.ToString();
             txtFPMaxDistance.Text = oSettings.nFPThreshold.ToString();
@@ -363,6 +364,14 @@ namespace KinectServer
         {
             int.TryParse(txtFPFilteringNeighbourhood.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out oSettings.nFPNeighbourhoodSize);
             UpdateClients();
+        }
+
+        private void cbColorTransfer_CheckedChanged(object sender, EventArgs e)
+        {
+            if (cbColorTransfer.Checked)
+                oSettings.bColorTransfer = true;
+            else
+                oSettings.bColorTransfer = false;
         }
     }
 }

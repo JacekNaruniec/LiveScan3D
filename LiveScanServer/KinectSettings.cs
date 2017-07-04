@@ -46,6 +46,7 @@ namespace KinectServer
         public int nNumRefineIters = 2;
         public bool bMergeScansForSave = true;
         public bool bSaveAsBinaryPLY = true;
+        public bool bColorTransfer = false;
 
         public KinectSettings()
         {

@@ -188,15 +188,16 @@ bool KinectCapture::AcquireFrame()
 	{
 		return false;
 	}
-
+	
 	GetDepthFrame(pMultiFrame);
 	GetColorFrame(pMultiFrame);
+	
 	GetBodyFrame(pMultiFrame);
 	GetBodyIndexFrame(pMultiFrame);
 
 	if (bFilterFlyingPixels)
 		filterFlyingPixels(iFPNeighbourhoodSize, (float)iFPThreshold, iFPMaxNonFittingNeighbours);
-
+		
 	SafeRelease(pMultiFrame);
 
 	return true;
@@ -302,9 +303,10 @@ void KinectCapture::GetBodyFrame(IMultiSourceFrame* pMultiFrame)
 	IBodyFrameReference* pBodyFrameReference = NULL;
 	IBodyFrame* pBodyFrame = NULL;
 	pMultiFrame->get_BodyFrameReference(&pBodyFrameReference);
+	
+	
 	HRESULT hr = pBodyFrameReference->AcquireFrame(&pBodyFrame);
-
-
+	
 	if (SUCCEEDED(hr))
 	{
 		IBody* bodies[BODY_COUNT] = { NULL };
@@ -338,9 +340,12 @@ void KinectCapture::GetBodyFrame(IMultiSourceFrame* pMultiFrame)
 					vBodies[i].vJointsInColorSpace[j].Y = tempPoint.Y;
 				}
 			}
+
+			for (int i = 0; i < BODY_COUNT; i++)
+				SafeRelease(bodies[i]);
 		}
 	}
-
+	
 	SafeRelease(pBodyFrame);
 	SafeRelease(pBodyFrameReference);
 }
@@ -363,7 +368,7 @@ void KinectCapture::GetBodyIndexFrame(IMultiSourceFrame* pMultiFrame)
 		UINT nBufferSize = nDepthFrameHeight * nDepthFrameWidth;
 		hr = pBodyIndexFrame->CopyFrameDataToArray(nBufferSize, pBodyIndex);
 	}
-
+	
 	SafeRelease(pBodyIndexFrame);
 	SafeRelease(pBodyIndexFrameReference);
 }

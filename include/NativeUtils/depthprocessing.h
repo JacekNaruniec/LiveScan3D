@@ -32,16 +32,10 @@ struct VertexC4ubV3f
 	float X, Y, Z;
 };
 
-
 struct Mesh
 {
 	int nVertices;
 	VertexC4ubV3f *vertices;
-	//float *vertices; 
-	//unsigned char *verticesRGB;
-	
-
-
 	int nTriangles; 
 	int *triangles;
 };
@@ -98,8 +92,8 @@ struct IntrinsicCameraParameters
 void RotatePoint(Point3f &point, std::vector<std::vector<float>> &R);
 void writeDepthImage(std::vector<unsigned short> &depth_image, int w, int h, std::string filename);
 
-
+extern "C" DEPTH_PROCESSING_API void __stdcall generateMeshFromDepthMaps(int n_maps, unsigned char* depth_maps,
+	unsigned char *depth_colors, int *widths, int *heights, float *intr_params, float *wtransform_params, Mesh *out_mesh, bool bcolor_transfer);
 extern "C" DEPTH_PROCESSING_API void __stdcall depthMapAndColorSetRadialCorrection(int n_maps, unsigned char* depth_maps, unsigned char *depth_colors, int *widths, int *heights, float *intr_params);
 extern "C" DEPTH_PROCESSING_API void __stdcall generateTrianglesWithColorsFromDepthMap(int n_maps, unsigned char* depth_maps, unsigned char *depth_colors, int *widths, int *heights, float *intr_params, float *wtransform_params, Mesh *out_mesh, int depth_map_index);
-extern "C" DEPTH_PROCESSING_API void __stdcall generateMeshFromDepthMaps(int n_maps, unsigned char* depth_maps, unsigned char *depth_colors, int *widths, int *heights, float *intr_params, float *wtransform_params, Mesh *out_mesh);
 extern "C" DEPTH_PROCESSING_API void __stdcall deleteMesh(Mesh*);

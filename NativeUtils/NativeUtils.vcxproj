@@ -298,6 +298,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\include\NativeUtils\colorcorrection.h" />
     <ClInclude Include="..\include\NativeUtils\depthprocessing.h" />
     <ClInclude Include="..\include\NativeUtils\icp.h" />
     <ClInclude Include="..\include\NativeUtils\meshGenerator.h" />
@@ -305,6 +306,7 @@
     <ClInclude Include="..\include\nanoflann.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\NativeUtils\colorcorrection.cpp" />
     <ClCompile Include="..\src\NativeUtils\depthprocessing.cpp" />
     <ClCompile Include="..\src\NativeUtils\icp.cpp" />
     <ClCompile Include="..\src\NativeUtils\main.cpp" />
