@@ -93,6 +93,7 @@ vector<TriangleIndexes> MeshGenerator::generateTrianglesGradients(UINT16 *depth_
 	{
 		UINT16 *depth_row = depth_image + y * ndepth_frame_width;
 		int *map_row = depth_to_vertices_map.data() + y * ndepth_frame_width;
+
 		for (int x = 1; x < ndepth_frame_width - 2; x++)
 		{
 			if (map_row[x] == -1)

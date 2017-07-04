@@ -25,8 +25,8 @@ ColorCorrectionParams getColorCorrectionTransform(std::vector<unsigned char> &RG
 		if (color_space == CS_LALPHABETA)
 		{
 			double l1, beta1, alpha1, l2, beta2, alpha2;
-			convertRGBToLAlphaBeta(R1, G1, B1, l1, alpha1, beta1);
-			convertRGBToLAlphaBeta(R2, G2, B2, l2, alpha2, beta2);
+			convertRGBToLAlphaBeta((unsigned char)R1, (unsigned char)G1, (unsigned char)B1, l1, alpha1, beta1);
+			convertRGBToLAlphaBeta((unsigned char)R2, (unsigned char)G2, (unsigned char)B2, l2, alpha2, beta2);
 
 			values1[i * 3] = l1;
 			values1[i * 3 + 1] = alpha1;
