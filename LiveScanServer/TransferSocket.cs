@@ -47,18 +47,57 @@ namespace KinectServer
             oSocket.GetStream().Write(BitConverter.GetBytes(val), 0, 4);
         }
 
-        public void SendFrame(List<float> vertices, List<byte> colors)
+        public void SendFrame(MeshChunks meshChunks)
         {
-            short[] sVertices = Array.ConvertAll(vertices.ToArray(), x => (short)(x * 1000));
+            //VertexC4ubV3s[] sVertices = Array.ConvertAll(meshChunks.lVertices.ToArray(), x => x.toVertexC4ubV3s());
+            VertexC4ubV3f[] sVertices = meshChunks.lVertices.ToArray();
 
-            int nVerticesToSend = vertices.Count / 3;
-            byte[] buffer = new byte[sizeof(short) * 3 * nVerticesToSend];
-            Buffer.BlockCopy(sVertices, 0, buffer, 0, sizeof(short) * 3 * nVerticesToSend);
+            int nVerticesToSend = meshChunks.lVertices.Count;
+            int nTrianglesToSend = meshChunks.lTriangles.Count / 3;
+            int nChunks = meshChunks.trianglesChunkSizes.Count(); 
+
+            byte[] colorsArray = new byte[sizeof(byte) * 3 * nVerticesToSend];
+            float[] verticesArray = new float[sizeof(float) * 3 * nVerticesToSend];
+
+            int[] triangles = meshChunks.lTriangles.ToArray();
+            
+            int pos1 = 0;
+            int pos2 = 0;
+            for (int i = 0; i < nVerticesToSend; i++)
+            {
+                colorsArray[pos1++] = sVertices[i].R;
+                colorsArray[pos1++] = sVertices[i].G;
+                colorsArray[pos1++] = sVertices[i].B;
+                verticesArray[pos2++] = sVertices[i].X;
+                verticesArray[pos2++] = sVertices[i].Y;
+                verticesArray[pos2++] = sVertices[i].Z;
+            }
+
+            byte[] colorsBuffer = new byte[sizeof(byte) * 3 * nVerticesToSend];
+            Buffer.BlockCopy(colorsArray, 0, colorsBuffer, 0, sizeof(byte) * 3 * nVerticesToSend);
+
+            byte[] verticesBuffer = new byte[sizeof(float) * 3 * nVerticesToSend];
+            Buffer.BlockCopy(verticesArray, 0, verticesBuffer, 0, sizeof(float) * 3 * nVerticesToSend);
+
+            byte[] trianglesBuffer = new byte[sizeof(int) * 3 * nTrianglesToSend];
+            Buffer.BlockCopy(triangles, 0, trianglesBuffer, 0, sizeof(int) * 3 * nTrianglesToSend);
+
+            byte[] chunksVerticesSizesBuffer = new byte[sizeof(int) * nChunks];
+            Buffer.BlockCopy(meshChunks.verticesChunkSizes.ToArray(), 0, chunksVerticesSizesBuffer, 0, sizeof(int) * nChunks);
+
+            byte[] chunksTrianglesSizesBuffer = new byte[sizeof(int) * nChunks];
+            Buffer.BlockCopy(meshChunks.trianglesChunkSizes.ToArray(), 0, chunksTrianglesSizesBuffer, 0, sizeof(int) * nChunks);
+
             try
             {                 
-                WriteInt(nVerticesToSend);                               
-                oSocket.GetStream().Write(buffer, 0, buffer.Length);
-                oSocket.GetStream().Write(colors.ToArray(), 0, sizeof(byte) * 3 * nVerticesToSend);
+                WriteInt(nVerticesToSend);
+                WriteInt(nTrianglesToSend);
+                WriteInt(nChunks);
+                oSocket.GetStream().Write(chunksVerticesSizesBuffer, 0, chunksVerticesSizesBuffer.Length);
+                oSocket.GetStream().Write(chunksTrianglesSizesBuffer, 0, chunksTrianglesSizesBuffer.Length);
+                oSocket.GetStream().Write(verticesBuffer, 0, verticesBuffer.Length);
+                oSocket.GetStream().Write(colorsBuffer, 0, colorsBuffer.Length);
+                oSocket.GetStream().Write(trianglesBuffer, 0, trianglesBuffer.Length);
             }
             catch (Exception)
             {

@@ -85,8 +85,9 @@ namespace KinectServer
             oServer = new KinectServer(oSettings);
             oServer.eSocketListChanged += new SocketListChangedHandler(UpdateListView);
             oTransferServer = new TransferServer();
-            //oTransferServer.lVertices = lAllVertices;
-            //oTransferServer.lColors = lAllColors;
+            oTransferServer.lVertices = lAllVertices;
+            oTransferServer.lTriangles = lAllTriangles;
+
 
             InitializeComponent();
         }

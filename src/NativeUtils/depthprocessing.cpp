@@ -783,6 +783,59 @@ void applyColorCorrection(vector<VerticesWithDepthColorMaps> &vertices_with_maps
 }
 
 
+void formMesh(Mesh *out_mesh, vector<VerticesWithDepthColorMaps> &vertices_with_maps, vector<vector<TriangleIndexes>> &triangle_indexes)
+{
+	int n_maps = (int)vertices_with_maps.size(); 
+	size_t n_total_vertices = 0;
+	size_t n_total_triangles = 0;
+
+	for (int i=0; i<n_maps; i++)
+	{ 
+		n_total_triangles += triangle_indexes[i].size(); 
+		n_total_vertices += vertices_with_maps[i].vertices.size(); 
+	}
+
+	out_mesh->nVertices = (int)n_total_vertices;
+	out_mesh->vertices = new VertexC4ubV3f[n_total_vertices];
+
+	size_t vertices_so_far = 0;
+	for (int i = 0; i < n_maps; i++)
+	{
+		for (int j = 0; j < vertices_with_maps[i].vertices.size(); j++)
+		{
+			out_mesh->vertices[j + vertices_so_far].R = vertices_with_maps[i].colors[j * 3];
+			out_mesh->vertices[j + vertices_so_far].G = vertices_with_maps[i].colors[j * 3 + 1];
+			out_mesh->vertices[j + vertices_so_far].B = vertices_with_maps[i].colors[j * 3 + 2];
+			out_mesh->vertices[j + vertices_so_far].A = 255;
+			out_mesh->vertices[j + vertices_so_far].X = vertices_with_maps[i].vertices[j].X;
+			out_mesh->vertices[j + vertices_so_far].Y = vertices_with_maps[i].vertices[j].Y;
+			out_mesh->vertices[j + vertices_so_far].Z = vertices_with_maps[i].vertices[j].Z;
+
+		}
+		vertices_so_far += vertices_with_maps[i].vertices.size();
+	}
+
+
+	int act_triangle = 0;
+	out_mesh->triangles = new int[n_total_triangles * 3];
+	int act_vertices = 0;
+	for (int i = 0; i < n_maps; i++)
+	{
+		for (int j = 0; j < triangle_indexes[i].size(); j++)
+		{
+			triangle_indexes[i][j].ind[0] += act_vertices;
+			triangle_indexes[i][j].ind[1] += act_vertices;
+			triangle_indexes[i][j].ind[2] += act_vertices;
+			memcpy(out_mesh->triangles + act_triangle * 3, triangle_indexes[i][j].ind, 3 * sizeof(int));
+			act_triangle++;
+		}
+
+		act_vertices += (int)vertices_with_maps[i].vertices.size();
+	}
+	out_mesh->nTriangles = act_triangle;
+
+}
+
 DEPTH_PROCESSING_API void __stdcall generateMeshFromDepthMaps(int n_maps, unsigned char* depth_maps,
 	unsigned char *depth_colors, int *widths, int *heights, float *intr_params, float *wtransform_params, Mesh *out_mesh, bool bcolor_transfer)
 {
@@ -817,28 +870,6 @@ DEPTH_PROCESSING_API void __stdcall generateMeshFromDepthMaps(int n_maps, unsign
 	for (int i = 0; i < n_maps; i++)
 		n_total_vertices += (int)vertices_with_maps[i].vertices.size();
 
-	out_mesh->nVertices = n_total_vertices;
-	out_mesh->vertices = new VertexC4ubV3f[n_total_vertices];
-
-	size_t vertices_so_far = 0;
-	for (int i = 0; i < n_maps; i++)
-	{
-		for (int j = 0; j < vertices_with_maps[i].vertices.size(); j++)
-		{
-			out_mesh->vertices[j + vertices_so_far].R = vertices_with_maps[i].colors[j * 3];
-			out_mesh->vertices[j + vertices_so_far].G = vertices_with_maps[i].colors[j * 3 + 1];
-			out_mesh->vertices[j + vertices_so_far].B = vertices_with_maps[i].colors[j * 3 + 2];
-			out_mesh->vertices[j + vertices_so_far].A = 255;
-			out_mesh->vertices[j + vertices_so_far].X = vertices_with_maps[i].vertices[j].X;
-			out_mesh->vertices[j + vertices_so_far].Y = vertices_with_maps[i].vertices[j].Y;
-			out_mesh->vertices[j + vertices_so_far].Z = vertices_with_maps[i].vertices[j].Z;
-
-		}
-
-		vertices_so_far += vertices_with_maps[i].vertices.size();
-	}
-
-
 	depth_pos = 0;
 	int n_triangles = 0;
 	vector<vector<TriangleIndexes>> triangle_indexes(n_maps);
@@ -855,23 +886,7 @@ DEPTH_PROCESSING_API void __stdcall generateMeshFromDepthMaps(int n_maps, unsign
 		n_triangles += (int)triangle_indexes[i].size(); 
 	}
 
-	int act_triangle = 0;
-	out_mesh->triangles = new int[n_triangles * 3];
-	int act_vertices = 0;
-	for (int i = 0; i < n_maps; i++)
-	{
-		for (int j = 0; j < triangle_indexes[i].size(); j++)
-		{
-			triangle_indexes[i][j].ind[0] += act_vertices;
-			triangle_indexes[i][j].ind[1] += act_vertices;
-			triangle_indexes[i][j].ind[2] += act_vertices;
-			memcpy(out_mesh->triangles + act_triangle * 3, triangle_indexes[i][j].ind, 3 * sizeof(int));
-			act_triangle++;
-		}
-
-		act_vertices += (int)vertices_with_maps[i].vertices.size();
-	}
-	out_mesh->nTriangles = act_triangle;
+	formMesh(out_mesh, vertices_with_maps, triangle_indexes);
 }
 
 extern "C" DEPTH_PROCESSING_API void __stdcall depthMapAndColorSetRadialCorrection(int n_maps, unsigned char* depth_maps, unsigned char *depth_colors, int *widths, int *heights, float *intr_params)
