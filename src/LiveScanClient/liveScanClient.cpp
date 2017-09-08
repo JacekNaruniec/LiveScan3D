@@ -221,7 +221,10 @@ void LiveScanClient::SerializeFrame(const UINT16* depthBuffer, RGB *color, Point
 			tempBuffer[pos + 2] = color[color_pos].rgbBlue;
 		}
 		else
+		{
 			memset(tempBuffer.data() + pos, 0, 3);
+			memset(tempBuffer.data() + i * sizeof(UINT16), 0, sizeof(UINT16));
+		}
 
 		pos += 3;
 	}

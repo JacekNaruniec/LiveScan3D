@@ -387,7 +387,7 @@ namespace KinectServer
             // Fill newly allocated buffer
             GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(VertexC4ubV3f.SizeInBytes * (PointCount + 2 * LineCount + 3 * TriangleCount)), VBO, BufferUsageHint.StreamDraw);
 
-            GL.DrawArrays(PrimitiveType.Points, 0, PointCount);
+            //GL.DrawArrays(PrimitiveType.Points, 0, PointCount);
             GL.DrawArrays(PrimitiveType.Lines, PointCount, 2 * LineCount);
             GL.DrawArrays(PrimitiveType.Triangles, PointCount + 2 *LineCount, 3 * TriangleCount);
 

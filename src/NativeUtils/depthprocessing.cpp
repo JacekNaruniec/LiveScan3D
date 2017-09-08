@@ -7,6 +7,9 @@
 #include "colorcorrection.h"
 #include "pgm.h"
 
+// defines for testing only
+//#define STORE_FRAMES_INFORMATION
+//#define LOAD_FRAMES_INFORMATION
 
 using namespace std; 
 
@@ -29,7 +32,6 @@ void createVertices(unsigned short *depth_map, unsigned char *depth_colors, int 
 	auto &colors = vertices_with_maps.colors;
 
 	colors.resize(w*h * 3);
-
 	vertices.resize(w*h);
 	int n_pixels = w*h; 
 	int n_vertices = 0;
@@ -290,13 +292,15 @@ void generateVerticesConfidence(vector<VerticesWithDepthColorMaps> &vertices_wit
 			
 
 					
+		
+		/* for testing only */
 		/*
 		char tmp[1024];
-		sprintf(tmp, "confidence_%d.pgm", i);
+		sprintf(tmp, "test/confidence_%d.pgm", i);
 		writeDepthImage(current_vertices_with_maps.confidence_map, w, h, tmp);
-		sprintf(tmp, "confidence_%d_d.pgm", i);
-		writeDepthImage(current_vertices_with_maps.depth_map, w, h, tmp);
-		*/
+		sprintf(tmp, "test/confidence_%d_d.pgm", i);
+		writeDepthImage(current_vertices_with_maps.depth_map, w, h, tmp);*/
+		/* --------------------------- */
 	}
 }
 
@@ -435,7 +439,7 @@ void assignDepthMapOverlay(vector<VerticesWithDepthColorMaps> &vertices_with_map
 					assignedDepthToVerticeIndex = v;
 				}
 				else
-					if (n1 == n2 && /*vertices_with_maps[base_map_index].confidence_map[pos] < 5 &&*/
+					if (n1 == n2 && vertices_with_maps[base_map_index].confidence_map[pos] < 5 &&
 						vertices_with_maps[base_map_index].confidence_map[pos] < vertices_with_maps[overlayed_index].confidence_map[overlay_verticle_to_pos])
 					{
 					  assignedMapIndex = overlayed_index;
@@ -452,7 +456,11 @@ void assignDepthMapOverlay(vector<VerticesWithDepthColorMaps> &vertices_with_map
 				n_changed++;
 			}
 			
+			/* additional 5 pix border is used to prevent lack of continuity in the borders
+			of different depth maps when connected */
 			if (vertices_with_maps[base_map_index].confidence_map[x + y*w] > 1)
+				if (x>5 && y>5 && x<(w-5) && y<(h-5))	
+
 				vertices_with_maps[overlayed_index].point_assigned[v] = true;
 
 
@@ -501,9 +509,18 @@ VerticesWithDepthColorMaps generateSelectedVertices(vector<unsigned short> &dept
 void mergeVerticesForViews(vector<VerticesWithDepthColorMaps> &vertices_with_maps, int *widths, int *heights, vector<WorldTranformation> &world_transforms,
 	 vector<IntrinsicCameraParameters> &intrinsic_params)
 {
-	int n_maps = (int)vertices_with_maps.size(); 
+	int n_maps = (int)vertices_with_maps.size();
 	vector<VerticesWithDepthColorMaps> new_vertices_with_maps(vertices_with_maps.size());
-	
+
+	/*
+	char tmp[1024];
+	for (int current_map_index = 0; current_map_index < n_maps; current_map_index++)
+	{
+		sprintf(tmp, "test/depth_%d_1.pgm", current_map_index);
+		writeDepthImage(vertices_with_maps[current_map_index].depth_map, widths[current_map_index], heights[current_map_index], tmp);
+	}
+	*/
+
 	//FILE *f = fopen("time.txt", "at");
 	//auto start = std::chrono::system_clock::now();
 
@@ -519,13 +536,11 @@ void mergeVerticesForViews(vector<VerticesWithDepthColorMaps> &vertices_with_map
 
 		new_vertices_with_maps[current_map_index].depth_map = vector<unsigned short>(h * w, 0);
 
-
 		projectVerticesIntoDepthMap(vertices_with_maps[current_map_index], world_transform, intrinsic_params[current_map_index], w, h, false);
 
 		for (auto &v : vertices_with_maps[current_map_index].point_assigned) v = true;
-
-		/*char tmp[1024];
-		sprintf(tmp, "test_depth_%d_1.pgm", current_map_index);
+		/*
+		sprintf(tmp, "test/test_depth_%d_1.pgm", current_map_index);
 		writeDepthImage(vertices_with_maps[current_map_index].depth_map, w, h, tmp);
 		*/
 		depth_to_vertices_map = vertices_with_maps[current_map_index].depth_to_vertices_map;
@@ -540,7 +555,7 @@ void mergeVerticesForViews(vector<VerticesWithDepthColorMaps> &vertices_with_map
 				intrinsic_params[current_map_index], i, current_map_index, w, h);
 		}
 		/*
-		sprintf(tmp, "test_depth_%d_2.pgm", current_map_index);
+		sprintf(tmp, "test/test_depth_%d_2.pgm", current_map_index);
 		writeDepthImage(vertices_with_maps[current_map_index].depth_map, w, h, tmp);
 		*/
 		new_vertices_with_maps[current_map_index] = generateSelectedVertices(vertices_with_maps[current_map_index].depth_map, vertices_with_maps, map_indexes, depth_to_vertices_map, w, h);
@@ -551,6 +566,78 @@ void mergeVerticesForViews(vector<VerticesWithDepthColorMaps> &vertices_with_map
 
 	//fprintf(f, "%d\n", (int)(std::chrono::duration_cast<std::chrono::milliseconds>(end - start)).count());
 	//fclose(f);
+}
+
+
+void storeAllFramesInformation(string filename, int n_maps, unsigned char* depth_maps,
+	unsigned char *depth_colors, int *widths, int *heights, float *intr_params, float *wtransform_params)
+{
+	FILE *f = fopen(filename.c_str(), "wb");
+
+	fwrite(&n_maps, sizeof(n_maps), 1, f);
+	if (n_maps > 0)
+	{
+		fwrite(widths, sizeof(widths[0]), n_maps, f);
+		fwrite(heights, sizeof(heights[0]), n_maps, f);
+	}
+
+	int pos_d = 0, pos_c = 0;
+	for (int i = 0; i < n_maps; i++)
+	{
+		fwrite(depth_maps + pos_d, 1, widths[i] * heights[i] * 2, f);
+		fwrite(depth_colors + pos_c, 1, widths[i] * heights[i] * 3, f);
+		pos_d += widths[i] * heights[i] * 2;
+		pos_c += widths[i] * heights[i] * 3;
+	}
+
+	fwrite(intr_params, sizeof(intr_params[0]), 7 * n_maps, f);
+	fwrite(wtransform_params, sizeof(wtransform_params[0]), 12 * n_maps, f);
+
+	fclose(f);
+}
+
+void loadAllFramesInformation(string filename, int &n_maps, unsigned char** depth_maps,
+	unsigned char **depth_colors, int **widths, int **heights, float **intr_params, float **wtransform_params)
+{
+	FILE *f = fopen(filename.c_str(), "rb");
+
+	fread(&n_maps, sizeof(n_maps), 1, f);
+	*widths = new int[n_maps];
+	*heights = new int[n_maps];
+
+	if (n_maps > 0)
+	{
+		fread(*widths, sizeof((*widths)[0]), n_maps, f);
+		fread(*heights, sizeof((*heights)[0]), n_maps, f);
+	}
+
+	int pos_d = 0, pos_c = 0;
+	for (int i = 0; i < n_maps; i++)
+	{
+		pos_d += (*widths)[i] * (*heights)[i] * 2;
+		pos_c += (*widths)[i] * (*heights)[i] * 3;
+	}
+
+	*depth_maps = new unsigned char[pos_d];
+	*depth_colors = new unsigned char[pos_c];
+	pos_c = 0;
+	pos_d = 0;
+
+	for (int i = 0; i < n_maps; i++)
+	{
+		fread(*depth_maps + pos_d, 1, (*widths)[i] * (*heights)[i] * 2, f);
+		fread(*depth_colors + pos_c, 1, (*widths)[i] * (*heights)[i] * 3, f);
+		pos_d += (*widths)[i] * (*heights)[i] * 2;
+		pos_c += (*widths)[i] * (*heights)[i] * 3;
+	}
+
+	*intr_params = new float[7 * n_maps];
+	*wtransform_params = new float[12 * n_maps];
+
+	fread(*intr_params, sizeof((*intr_params)[0]), 7 * n_maps, f);
+	fread(*wtransform_params, sizeof((*wtransform_params)[0]), 12 * n_maps, f);
+
+	fclose(f);
 }
 
 
@@ -840,6 +927,17 @@ DEPTH_PROCESSING_API void __stdcall generateMeshFromDepthMaps(int n_maps, unsign
 	unsigned char *depth_colors, int *widths, int *heights, float *intr_params, float *wtransform_params, Mesh *out_mesh, bool bcolor_transfer)
 {
 	int depth_pos = 0, colors_pos = 0;;
+
+#ifdef STORE_FRAMES_INFORMATION
+	// for testing purposes only
+	storeAllFramesInformation("frames_info.bin", n_maps, depth_maps, depth_colors, widths, heights, intr_params, wtransform_params);
+#endif
+
+#ifdef LOAD_FRAMES_INFORMATION
+	// for testing purposes only 
+	loadAllFramesInformation("frames_info.bin", n_maps, &depth_maps, &depth_colors, &widths, &heights, &intr_params, &wtransform_params);
+#endif
+
 	vector<VerticesWithDepthColorMaps> vertices_with_maps(n_maps);
 
 	vector<IntrinsicCameraParameters> intrinsic_params(n_maps);
