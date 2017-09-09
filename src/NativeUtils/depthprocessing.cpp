@@ -10,6 +10,9 @@
 // defines for testing only
 //#define STORE_FRAMES_INFORMATION
 //#define LOAD_FRAMES_INFORMATION
+//#define SHOW_TIMINGS
+
+#include "simpletimer.h"
 
 using namespace std; 
 
@@ -950,9 +953,21 @@ DEPTH_PROCESSING_API void __stdcall generateMeshFromDepthMaps(int n_maps, unsign
 		world_transforms[i] = WorldTranformation(wtransform_params + i*(9 + 3));
 	}
 
+#ifdef SHOW_TIMINGS
+	SimpleTimer timer;
+	timer.start();  
+#endif
+
 	generateVerticesFromDepthMaps(depth_maps, depth_colors, widths, heights, world_transforms, intrinsic_params, vertices_with_maps);
+
+#ifdef SHOW_TIMINGS
+	timer.printLapTimeAndRestart("1");
+#endif
 	generateVerticesConfidence(vertices_with_maps, widths, heights);
-	
+#ifdef SHOW_TIMINGS
+	timer.printLapTimeAndRestart("2");
+#endif
+
 
 
 	if (bcolor_transfer)
@@ -960,8 +975,14 @@ DEPTH_PROCESSING_API void __stdcall generateMeshFromDepthMaps(int n_maps, unsign
 		updateColorCorrectionCoefficients(vertices_with_maps, widths, heights, world_transforms, intrinsic_params, color_correction_coeffs);
 		applyColorCorrection(vertices_with_maps, color_correction_coeffs);
 	}
+#ifdef SHOW_TIMINGS
+	timer.printLapTimeAndRestart("3");
+#endif
 
 	mergeVerticesForViews(vertices_with_maps, widths, heights, world_transforms, intrinsic_params);
+#ifdef SHOW_TIMINGS
+	timer.printLapTimeAndRestart("4");
+#endif
 
 
 	int n_total_vertices = 0;
@@ -983,8 +1004,14 @@ DEPTH_PROCESSING_API void __stdcall generateMeshFromDepthMaps(int n_maps, unsign
 		depth_pos += n_pixels * 2;
 		n_triangles += (int)triangle_indexes[i].size(); 
 	}
+#ifdef SHOW_TIMINGS
+	timer.printLapTimeAndRestart("5");
+#endif
 
 	formMesh(out_mesh, vertices_with_maps, triangle_indexes);
+#ifdef SHOW_TIMINGS
+	timer.printLapTimeAndRestart("6");
+#endif
 }
 
 extern "C" DEPTH_PROCESSING_API void __stdcall depthMapAndColorSetRadialCorrection(int n_maps, unsigned char* depth_maps, unsigned char *depth_colors, int *widths, int *heights, float *intr_params)

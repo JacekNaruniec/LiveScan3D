@@ -14,9 +14,11 @@
 //    }
 #include <stdio.h>
 #include <vector>
+#include "simpletimer.h"
 
-#include "icp.h"
-#include "opencv\cv.h"
+//#include "icp.h"
+//#include "opencv\cv.h"
+#include "depthprocessing.h"
 
 using namespace std;
 
@@ -110,19 +112,102 @@ void loadPLY(string filename, vector<Point3f> &verts, vector<RGB> &colors)
 //This function here can be used to test the ICP functionality, it aligns the points clouds in "test1.ply" and "test2.ply"
 int main()
 {
+
+	Mesh mesh; 
+	unsigned char *depth_maps = nullptr, *depth_colors = nullptr;
+	int *widths = nullptr, *heights = nullptr;
+	float *intr_params = nullptr, *wtransform_params = nullptr;
+
+	SimpleTimer timer; 
+
+	timer.start(); 
+	generateMeshFromDepthMaps(1, depth_maps, depth_colors,
+		widths, heights, intr_params, wtransform_params, &mesh, true);
+	timer.stop();
+	int ms = timer.getMilliseconds();
+
+	/* create reference data */
+	/*FILE *ref = fopen("ref.bin", "wb");
+	fwrite(&mesh.nTriangles, sizeof(mesh.nTriangles), 1, ref);
+	fwrite(mesh.triangles, sizeof(mesh.triangles[0]), mesh.nTriangles, ref);
+	fwrite(&mesh.nVertices, sizeof(mesh.nVertices), 1, ref);
+	fwrite(mesh.vertices, sizeof(mesh.vertices[0]), mesh.nVertices, ref);
+	fclose(ref);
+	*/
+	printf("\n Created %d vertices", mesh.nVertices);
+	printf("\n Created %d triangles", mesh.nTriangles);
+
+	// compare to reference data
+	FILE *ref_test = fopen("ref.bin", "rb");
+	Mesh ref_mesh; 
+	fread(&ref_mesh.nTriangles, sizeof(ref_mesh.nTriangles), 1, ref_test);
+	ref_mesh.triangles = new int[ref_mesh.nTriangles];
+	fread(ref_mesh.triangles, sizeof(ref_mesh.triangles[0]), ref_mesh.nTriangles, ref_test);
+
+	fread(&ref_mesh.nVertices, sizeof(ref_mesh.nVertices), 1, ref_test);
+	ref_mesh.vertices = new VertexC4ubV3f[ref_mesh.nVertices];
+	fread(ref_mesh.vertices, sizeof(ref_mesh.vertices[0]), ref_mesh.nVertices, ref_test);
+	fclose(ref_test);
+
+	printf("\n\n Reference %d vertices", ref_mesh.nVertices);
+	printf("\n Reference %d triangles", ref_mesh.nTriangles);
+
+	if (ref_mesh.nVertices != mesh.nVertices)
+	{
+		printf("\nNumbers of vertices are not equal!");
+		getchar(); 
+		return 0;
+	}
+
+	if (ref_mesh.nTriangles != mesh.nTriangles)
+	{
+		printf("\nNumbers of triangles are not equal!");
+		getchar();
+		return 0;
+	}
+
+	for (int i=0; i<ref_mesh.nTriangles; i++)
+		if (ref_mesh.triangles[i] != mesh.triangles[i])
+		{
+			printf("\n Different triangle %d!! ", i);
+			getchar();
+			return 0;
+		}
+
+	for (int i = 0; i<ref_mesh.nVertices; i++)
+		if (ref_mesh.vertices[i].X != mesh.vertices[i].X ||
+			ref_mesh.vertices[i].Y != mesh.vertices[i].Y ||
+			ref_mesh.vertices[i].Z != mesh.vertices[i].Z ||
+			ref_mesh.vertices[i].R != mesh.vertices[i].R ||
+			ref_mesh.vertices[i].G != mesh.vertices[i].G ||
+			ref_mesh.vertices[i].B != mesh.vertices[i].B ||
+			ref_mesh.vertices[i].A != mesh.vertices[i].A)
+		{
+			printf("\n Different vertex %d!! ", i);
+			getchar();
+			return 0;
+		}
+
+	printf("\nTest PASSED");
+	printf("\nProcessing took %d [ms] ", ms);
+	
+	getchar();  
+
+	return 0;
+	/*
 	vector<Point3f> verts1, verts2;
 	vector<RGB> colors1, colors2;
 
 	loadPLY("../test1.ply", verts1, colors1);
 	loadPLY("../test2.ply", verts2, colors2);
-
+	
 	cv::Mat R = cv::Mat::eye(3, 3, CV_32F);
 	cv::Mat t(1, 3, CV_32F, cv::Scalar(0));
 	cv::Mat verts2Mat((int)verts2.size(), 3, CV_32F, (float*)verts2.data());
-
+	
 	ICP(verts1.data(), verts2.data(), (int)verts1.size(), (int)verts2.size(), (float*)R.data, (float*)t.data, 1);
 
 	savePLY("../testResult.ply", verts2, colors2);
-
 	return 0;
+	*/
 }
