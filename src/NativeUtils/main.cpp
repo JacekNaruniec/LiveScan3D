@@ -108,11 +108,9 @@ void loadPLY(string filename, vector<Point3f> &verts, vector<RGB> &colors)
 	fclose(f);
 }
 
-
 //This function here can be used to test the ICP functionality, it aligns the points clouds in "test1.ply" and "test2.ply"
 int main()
 {
-
 	Mesh mesh; 
 	unsigned char *depth_maps = nullptr, *depth_colors = nullptr;
 	int *widths = nullptr, *heights = nullptr;
@@ -122,7 +120,8 @@ int main()
 
 	timer.start(); 
 	generateMeshFromDepthMaps(1, depth_maps, depth_colors,
-		widths, heights, intr_params, wtransform_params, &mesh, true);
+		widths, heights, intr_params, wtransform_params, &mesh, true, -5.0f, -5.0f, 
+		-5.0f, 5.0f, 5.0f, 5.0f);
 	timer.stop();
 	int ms = timer.getMilliseconds();
 

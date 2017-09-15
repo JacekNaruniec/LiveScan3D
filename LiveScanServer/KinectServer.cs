@@ -34,7 +34,8 @@ namespace KinectServer
 
         [DllImport("NativeUtils.dll")]
         static extern void generateMeshFromDepthMaps(int n_maps, byte[] depth_maps, byte[] depth_colors,
-            int[] widths, int[] heights, float[] iparams, float[] tparams, ref Mesh out_mesh, bool bColorTransfer);
+            int[] widths, int[] heights, float[] iparams, float[] tparams, ref Mesh out_mesh, bool bColorTransfer,
+            float minX, float minY, float minZ, float maxX, float maxY,  float maxZ);
 
         [DllImport("NativeUtils.dll")]
         static extern void generateTrianglesWithColorsFromDepthMap(int n_maps, byte[] depth_maps, byte[] depth_colors,
@@ -355,8 +356,10 @@ namespace KinectServer
 
             if (nClients == 0)
                 return; 
-
-            generateMeshFromDepthMaps(nClients, depthMaps, depthColors, widths, heights, intrinsicsParams, transformParams, ref mesh, oSettings.bColorTransfer);
+            
+            generateMeshFromDepthMaps(nClients, depthMaps, depthColors, widths, heights, intrinsicsParams, transformParams, ref mesh, oSettings.bColorTransfer,
+                oSettings.aMinBounds[0], oSettings.aMinBounds[1], oSettings.aMinBounds[2],
+                oSettings.aMaxBounds[0], oSettings.aMaxBounds[1], oSettings.aMaxBounds[2]);
 
             lVerticesWithColours.AddRange(CopyMeshToVerticesWithColours(mesh));
             lFrameTriangles.AddRange(CopyMeshToTrianglesList(mesh));
