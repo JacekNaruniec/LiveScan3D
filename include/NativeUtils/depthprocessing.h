@@ -32,6 +32,13 @@ struct VertexC4ubV3f
 	float X, Y, Z;
 };
 
+struct PointProjection
+{
+	int x, y;
+	unsigned short d; 
+	int index; 
+};
+
 struct Mesh
 {
 	int nVertices;
@@ -96,5 +103,4 @@ extern "C" DEPTH_PROCESSING_API void __stdcall generateMeshFromDepthMaps(int n_m
 	unsigned char *depth_colors, int *widths, int *heights, float *intr_params, float *wtransform_params, Mesh *out_mesh, bool bcolor_transfer,
 	float minX, float minY, float minZ, float maxX, float maxY, float maxZ);
 extern "C" DEPTH_PROCESSING_API void __stdcall depthMapAndColorSetRadialCorrection(int n_maps, unsigned char* depth_maps, unsigned char *depth_colors, int *widths, int *heights, float *intr_params);
-extern "C" DEPTH_PROCESSING_API void __stdcall generateTrianglesWithColorsFromDepthMap(int n_maps, unsigned char* depth_maps, unsigned char *depth_colors, int *widths, int *heights, float *intr_params, float *wtransform_params, Mesh *out_mesh, int depth_map_index);
 extern "C" DEPTH_PROCESSING_API void __stdcall deleteMesh(Mesh*);

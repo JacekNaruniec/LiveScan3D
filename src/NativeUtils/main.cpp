@@ -27,7 +27,12 @@ struct RGB
 	unsigned char R, G, B;
 };
 
-void savePLY(std::string filename, std::vector<Point3f> vertices, std::vector<RGB> colors)
+struct Triangle
+{
+	int v1, v2, v3;
+};
+
+void savePLY(std::string filename, std::vector<Point3f> &vertices, std::vector<RGB> &colors, std::vector<Triangle> &triangles)
 {
 
 	unsigned int numVertices = (unsigned int)vertices.size();
@@ -50,11 +55,15 @@ void savePLY(std::string filename, std::vector<Point3f> vertices, std::vector<RG
 	written = sprintf_s(outStr, bufSize, "element vertex %u\nproperty float x\nproperty float y\nproperty float z\nproperty uchar red\nproperty uchar green\nproperty uchar blue\n", numVertices);
 	fwrite(outStr, sizeof(char), written, meshFile);
 
+	if (triangles.size() > 0)
+	{
+		written = sprintf_s(outStr, bufSize, "element face %d\nproperty list uchar int vertex_index\n", (int)triangles.size());
+		fwrite(outStr, sizeof(char), written, meshFile);
+	}
 	written = sprintf_s(outStr, bufSize, "end_header\n");
 	fwrite(outStr, sizeof(char), written, meshFile);
 
 
-	// Sequentially write the 3 vertices of the triangle, for each triangle
 	for (unsigned int vertexIndex = 0; vertexIndex < numVertices; vertexIndex++)
 	{
 		unsigned int color0 = colors[vertexIndex].R;
@@ -66,6 +75,15 @@ void savePLY(std::string filename, std::vector<Point3f> vertices, std::vector<RG
 			((color0)& 255), ((color1)& 255), (color2 & 255));
 
 		fwrite(outStr, sizeof(char), written, meshFile);
+	}
+
+	for (unsigned int triangleIndex = 0; triangleIndex < triangles.size(); triangleIndex++)
+	{
+		written = sprintf_s(outStr, bufSize, "3 %d %d %d\n", triangles[triangleIndex].v1, 
+			triangles[triangleIndex].v2, triangles[triangleIndex].v3);
+
+		fwrite(outStr, sizeof(char), written, meshFile);
+
 	}
 
 	fflush(meshFile);
@@ -108,6 +126,35 @@ void loadPLY(string filename, vector<Point3f> &verts, vector<RGB> &colors)
 	fclose(f);
 }
 
+void savePLY(std::string filename, Mesh &mesh)
+{
+	vector<Point3f> vertices(mesh.nVertices);
+	vector<RGB> colors(mesh.nVertices);
+	vector<Triangle> triangles(mesh.nTriangles);
+
+	for (int vertexIndex = 0; vertexIndex < mesh.nVertices; vertexIndex++)
+	{
+		vertices[vertexIndex].X = mesh.vertices[vertexIndex].X;
+		vertices[vertexIndex].Y = mesh.vertices[vertexIndex].Y;
+		vertices[vertexIndex].Z = mesh.vertices[vertexIndex].Z;
+
+		colors[vertexIndex].R = mesh.vertices[vertexIndex].R;
+		colors[vertexIndex].G = mesh.vertices[vertexIndex].G;
+		colors[vertexIndex].B = mesh.vertices[vertexIndex].B;
+	}
+
+	for (int triangleIndex = 0; triangleIndex < mesh.nTriangles; triangleIndex++)
+	{
+		triangles[triangleIndex].v1 = mesh.triangles[triangleIndex * 3 + 0];
+		triangles[triangleIndex].v2 = mesh.triangles[triangleIndex * 3 + 1];
+		triangles[triangleIndex].v3 = mesh.triangles[triangleIndex * 3 + 2];
+	}
+
+	savePLY(filename, vertices, colors, triangles);
+
+
+}
+
 //This function here can be used to test the ICP functionality, it aligns the points clouds in "test1.ply" and "test2.ply"
 int main()
 {
@@ -124,7 +171,7 @@ int main()
 		-5.0f, 5.0f, 5.0f, 5.0f);
 	timer.stop();
 	int ms = timer.getMilliseconds();
-
+	
 	/* create reference data */
 	/*FILE *ref = fopen("ref.bin", "wb");
 	fwrite(&mesh.nTriangles, sizeof(mesh.nTriangles), 1, ref);
@@ -150,6 +197,13 @@ int main()
 
 	printf("\n\n Reference %d vertices", ref_mesh.nVertices);
 	printf("\n Reference %d triangles", ref_mesh.nTriangles);
+
+	printf("\nProcessing took %d [ms] ", ms);
+
+	printf("\nSaving mesh to PLY file\n");
+	savePLY("mesh.ply", mesh);
+	printf("PLY saved\n");
+
 
 	if (ref_mesh.nVertices != mesh.nVertices)
 	{
@@ -186,12 +240,12 @@ int main()
 			getchar();
 			return 0;
 		}
-
+	
+	
 	printf("\nTest PASSED");
-	printf("\nProcessing took %d [ms] ", ms);
 	
 	getchar();  
-
+	
 	return 0;
 	/*
 	vector<Point3f> verts1, verts2;

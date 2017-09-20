@@ -193,7 +193,7 @@ namespace KinectServer
             PointCount = 0;
             LineCount = 12;
             TriangleCount = 0;
-            VBO = new VertexC4ubV3f[PointCount + 2 * LineCount + 3 * TriangleCount];
+            VBO = new VertexC4ubV3f[/*PointCount + */2 * LineCount + 3 * TriangleCount];
         }
 
         protected override void OnUnload(EventArgs e)
@@ -316,12 +316,12 @@ namespace KinectServer
                 nTickCounter = 0;
             }
 
-
+            
             lock (vertices)     // TODO: JN shouldn't it be locked on some lock object, vertices can change?
             {
                 bool bShowSkeletons = settings.bShowSkeletons;
 
-                PointCount = vertices.Count;
+                PointCount = 0;//vertices.Count;
                 LineCount = 0;
                 TriangleCount = triangles.Count / 3;
 
@@ -338,12 +338,12 @@ namespace KinectServer
                         LineCount += 24 * bodies.Count;
                 }
 
-                VBO = new VertexC4ubV3f[PointCount + 2 * LineCount + 3 * TriangleCount];
-
+                VBO = new VertexC4ubV3f[/*PointCount + */2 * LineCount + 3 * TriangleCount];
+                /*
                 VertexC4ubV3f[]verticesArray = vertices.ToArray();
                 if (PointCount > 0)
                     Array.Copy(verticesArray, VBO, PointCount);
-                
+                */
                 if (bDrawMarkings)
                 {
                     int iCurLineCount = 0;
@@ -406,7 +406,6 @@ namespace KinectServer
             for (int i = startIdx; i < endIdx; i++)
             {
                 int v = triangles[i - startIdx];
-                //Array.Copy(verticesArray, v, VBO, i, 1);
                 VBO[i] = verticesArray[v];
             } 
                  
