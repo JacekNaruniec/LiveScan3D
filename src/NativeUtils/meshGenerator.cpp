@@ -91,11 +91,16 @@ void MeshGenerator::generateTrianglesGradientsRegion(UINT16 *depth_image, vector
 	const int pixel_shifts[] = { -w, -w + 1, 1 };
 	const int n_pixel_shifts = 4;
 
-	const int triangles_shifts[] = { 0,				  pixel_shifts[0], pixel_shifts[2],
+/*	const int triangles_shifts[] = { 0,				  pixel_shifts[0], pixel_shifts[2],
 		pixel_shifts[2], pixel_shifts[0], pixel_shifts[1],
 		0,				  pixel_shifts[0], pixel_shifts[1],
 		0,				  pixel_shifts[1], pixel_shifts[2] };
-
+		*/
+		const int triangles_shifts[] = { pixel_shifts[2], pixel_shifts[0], 0,
+		pixel_shifts[2], pixel_shifts[1], pixel_shifts[0],
+		0,				  pixel_shifts[1], pixel_shifts[0], 
+		0,				  pixel_shifts[2] , pixel_shifts[1]};
+		
 	for (int y = minY; y < maxY; y++)
 	{
 		UINT16 *depth_row = depth_image + y * ndepth_frame_width;

@@ -87,6 +87,7 @@
             this.txtRefinIters = new System.Windows.Forms.TextBox();
             this.lbOuterIters = new System.Windows.Forms.Label();
             this.cbColorTransfer = new System.Windows.Forms.CheckBox();
+            this.cbGenerateTriangles = new System.Windows.Forms.CheckBox();
             this.grClient.SuspendLayout();
             this.grBody.SuspendLayout();
             this.grMarkers.SuspendLayout();
@@ -751,11 +752,25 @@
             this.cbColorTransfer.UseVisualStyleBackColor = true;
             this.cbColorTransfer.CheckedChanged += new System.EventHandler(this.cbColorTransfer_CheckedChanged);
             // 
+            // cbGenerateTriangles
+            // 
+            this.cbGenerateTriangles.AutoSize = true;
+            this.cbGenerateTriangles.Checked = true;
+            this.cbGenerateTriangles.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.cbGenerateTriangles.Location = new System.Drawing.Point(541, 560);
+            this.cbGenerateTriangles.Name = "cbGenerateTriangles";
+            this.cbGenerateTriangles.Size = new System.Drawing.Size(167, 24);
+            this.cbGenerateTriangles.TabIndex = 46;
+            this.cbGenerateTriangles.Text = "Generate triangles";
+            this.cbGenerateTriangles.UseVisualStyleBackColor = true;
+            this.cbGenerateTriangles.CheckedChanged += new System.EventHandler(this.cbGenerateTriangles_CheckedChanged);
+            // 
             // SettingsForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(9F, 20F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(984, 707);
+            this.Controls.Add(this.cbGenerateTriangles);
             this.Controls.Add(this.cbColorTransfer);
             this.Controls.Add(this.grServer);
             this.Controls.Add(this.grClient);
@@ -842,5 +857,6 @@
         private System.Windows.Forms.TextBox txtFPMaxDistance;
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.CheckBox cbColorTransfer;
+        private System.Windows.Forms.CheckBox cbGenerateTriangles;
     }
 }

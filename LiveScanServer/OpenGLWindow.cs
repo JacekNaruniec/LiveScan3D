@@ -40,6 +40,7 @@ namespace KinectServer
         int TriangleCount;
 
         VertexC4ubV3f[] VBO;
+        uint[] IBO;
         float PointSize = 0.0f;
         ECameraMode CameraMode = ECameraMode.CAMERA_NONE;
 
@@ -63,11 +64,13 @@ namespace KinectServer
         float[] cameraPosition = new float[3];
         float[] targetPosition = new float[3];
 
-        public List<VertexC4ubV3f> vertices = new List<VertexC4ubV3f>();
+        public VertexC4ubV3f[] vertices = new VertexC4ubV3f[0];
         public List<AffineTransform> cameraPoses = new List<AffineTransform>();
         public List<Body> bodies = new List<Body>();
-        public List<int> triangles = new List<int>();
+        public int[] triangles = new int[0];
         public KinectSettings settings = new KinectSettings();
+
+        public object verticesLock; 
 
 
         DateTime tFPSUpdateTimer = DateTime.Now;
@@ -76,6 +79,7 @@ namespace KinectServer
         bool bDrawMarkings = true;
 
         uint VBOHandle;
+        uint ElementBufferHandle;
 
         /// <summary>Creates a 800x600 window with the specified title.</summary>
         public OpenGLWindow()
@@ -95,6 +99,15 @@ namespace KinectServer
             targetPosition[0] = 0;
             targetPosition[1] = 0;
             targetPosition[2] = 0;
+        }
+
+        public void SetNewVerticesAndTriangles(VertexC4ubV3f[] newVertices, int[] newTriangles)
+        {
+            lock (verticesLock)
+            {
+                vertices = newVertices;
+                triangles = newTriangles;
+            }
         }
 
         public void CloudUpdateTick()
@@ -190,10 +203,14 @@ namespace KinectServer
             GL.ColorPointer(4, ColorPointerType.UnsignedByte, VertexC4ubV3f.SizeInBytes, (IntPtr)0);
             GL.VertexPointer(3, VertexPointerType.Float, VertexC4ubV3f.SizeInBytes, (IntPtr)(4 * sizeof(byte)));
 
+            GL.GenBuffers(1, out ElementBufferHandle);
+            GL.BindBuffer(BufferTarget.ElementArrayBuffer, ElementBufferHandle);
+            
             PointCount = 0;
             LineCount = 12;
             TriangleCount = 0;
-            VBO = new VertexC4ubV3f[/*PointCount + */2 * LineCount + 3 * TriangleCount];
+            VBO = new VertexC4ubV3f[PointCount + 2 * LineCount];
+            IBO = new uint[TriangleCount];
         }
 
         protected override void OnUnload(EventArgs e)
@@ -314,16 +331,15 @@ namespace KinectServer
 
                 tFPSUpdateTimer = DateTime.Now;
                 nTickCounter = 0;
-            }
-
+            } 
             
-            lock (vertices)     // TODO: JN shouldn't it be locked on some lock object, vertices can change?
+            lock (verticesLock)     // TODO: JN shouldn't it be locked on some lock object, vertices can change?
             {
                 bool bShowSkeletons = settings.bShowSkeletons;
 
-                PointCount = 0;//vertices.Count;
+                PointCount = vertices.Count();
                 LineCount = 0;
-                TriangleCount = triangles.Count / 3;
+                TriangleCount = triangles.Count() / 3;
 
 
                 if (bDrawMarkings)
@@ -338,12 +354,13 @@ namespace KinectServer
                         LineCount += 24 * bodies.Count;
                 }
 
-                VBO = new VertexC4ubV3f[/*PointCount + */2 * LineCount + 3 * TriangleCount];
-                /*
-                VertexC4ubV3f[]verticesArray = vertices.ToArray();
+                VBO = new VertexC4ubV3f[PointCount + 2 * LineCount];
+                IBO = (uint[])(object)(triangles);
+
+                VertexC4ubV3f[]verticesArray = vertices;
                 if (PointCount > 0)
                     Array.Copy(verticesArray, VBO, PointCount);
-                */
+                
                 if (bDrawMarkings)
                 {
                     int iCurLineCount = 0;
@@ -359,9 +376,6 @@ namespace KinectServer
                     if (bShowSkeletons)
                         iCurLineCount += AddBodies(PointCount + 2 * iCurLineCount);
                 }
-
-                AddTriangles(PointCount + 2 * LineCount);
-
             }
         }
 
@@ -380,16 +394,22 @@ namespace KinectServer
             GL.Rotate(g_pitch, 1.0f, 0.0f, 0.0f);
             GL.Rotate(g_heading, 0.0f, 1.0f, 0.0f);
 
+            GL.BindBuffer(BufferTarget.ArrayBuffer, VBOHandle);
             // Tell OpenGL to discard old VBO when done drawing it and reserve memory _now_ for a new buffer.
             // without this, GL would wait until draw operations on old VBO are complete before writing to it
-            GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(VertexC4ubV3f.SizeInBytes * (PointCount + 2 * LineCount + 3 *TriangleCount)), IntPtr.Zero, BufferUsageHint.StreamDraw);
+            GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(VertexC4ubV3f.SizeInBytes * (PointCount + 2 * LineCount)), IntPtr.Zero, BufferUsageHint.StreamDraw);
             
             // Fill newly allocated buffer
-            GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(VertexC4ubV3f.SizeInBytes * (PointCount + 2 * LineCount + 3 * TriangleCount)), VBO, BufferUsageHint.StreamDraw);
+            GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(VertexC4ubV3f.SizeInBytes * (PointCount + 2 * LineCount)), VBO, BufferUsageHint.StreamDraw);
 
-            //GL.DrawArrays(PrimitiveType.Points, 0, PointCount);
+            if (TriangleCount == 0 && PointCount !=0)
+                GL.DrawArrays(PrimitiveType.Points, 0, PointCount);
+
             GL.DrawArrays(PrimitiveType.Lines, PointCount, 2 * LineCount);
-            GL.DrawArrays(PrimitiveType.Triangles, PointCount + 2 *LineCount, 3 * TriangleCount);
+            GL.BindBuffer(BufferTarget.ElementArrayBuffer, ElementBufferHandle);
+
+            GL.BufferData(BufferTarget.ElementArrayBuffer, (IntPtr)(4 * TriangleCount * 3), IBO, BufferUsageHint.StreamDraw);
+            GL.DrawElements(PrimitiveType.Triangles, TriangleCount * 3, DrawElementsType.UnsignedInt, 0);
 
             GL.PopMatrix();
 
@@ -398,7 +418,7 @@ namespace KinectServer
 
         private void AddTriangles(int startIdx)
         {
-            VertexC4ubV3f []verticesArray = vertices.ToArray();
+            VertexC4ubV3f []verticesArray = vertices;
             int endIdx = startIdx + TriangleCount *  3;
             if (endIdx - startIdx == 0)
                 return; 

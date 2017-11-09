@@ -45,15 +45,17 @@ namespace KinectServer
         KinectServer oServer;
         TransferServer oTransferServer;
 
+        object lAllVerticesLock = new object(); 
+
         //Those three variables are shared with the OpenGLWindow class and are used to exchange data with it.
         //Vertices from all of the sensors
-        List<VertexC4ubV3f> lAllVertices = new List<VertexC4ubV3f>();
+        VertexC4ubV3f[] lAllVertices = new VertexC4ubV3f[0];
         //Sensor poses from all of the sensors
         List<AffineTransform> lAllCameraPoses = new List<AffineTransform>();
         //Body data from all of the sensors
         List<Body> lAllBodies = new List<Body>();
         //Triangles data from all of the sensors
-        List<int> lAllTriangles = new List<int>();
+        int[] lAllTriangles = new int[0];
 
         bool bServerRunning = false;
         bool bRecording = false;
@@ -85,9 +87,6 @@ namespace KinectServer
             oServer = new KinectServer(oSettings);
             oServer.eSocketListChanged += new SocketListChangedHandler(UpdateListView);
             oTransferServer = new TransferServer();
-            oTransferServer.lVertices = lAllVertices;
-            oTransferServer.lTriangles = lAllTriangles;
-
 
             InitializeComponent();
         }
@@ -169,8 +168,9 @@ namespace KinectServer
             oOpenGLWindow = new OpenGLWindow();
 
             //The variables below are shared between this class and the OpenGLWindow.
-            lock (lAllVertices)
+            lock (lAllVerticesLock)
             {
+                oOpenGLWindow.verticesLock = lAllVerticesLock;
                 oOpenGLWindow.triangles = lAllTriangles;
                 oOpenGLWindow.vertices = lAllVertices;
                 oOpenGLWindow.cameraPoses = lAllCameraPoses;
@@ -197,10 +197,10 @@ namespace KinectServer
             //This loop is running till it is either cancelled (using the btRecord button), or till there are no more stored frames.
             while (!worker.CancellationPending)
             {
-                List<VertexC4ubV3f> lVerticesWithColors = new List<VertexC4ubV3f>();
-                List<int> lTriangles = new List<int>();
+                VertexC4ubV3f[] lVerticesWithColors = new VertexC4ubV3f[0];
+                int[] lTriangles;
 
-                bool success = oServer.GetStoredFrame(lVerticesWithColors, lTriangles);
+                bool success = oServer.GetStoredFrame(out lVerticesWithColors, out lTriangles);
 
                 //This indicates that there are no more stored frames.
                 if (!success)
@@ -214,7 +214,7 @@ namespace KinectServer
                 if (oSettings.bMergeScansForSave)
                 {
                     string outputFilename = outDir + "\\" + nFrames.ToString().PadLeft(5, '0') + ".ply";
-                    Utils.saveToPly(outputFilename, lVerticesWithColors, lTriangles, oSettings.bSaveAsBinaryPLY);
+                    Utils.saveToPly(outputFilename, lVerticesWithColors.ToList(), lTriangles.ToList(), oSettings.bSaveAsBinaryPLY);
                 }
             }
         }
@@ -238,8 +238,8 @@ namespace KinectServer
         private void updateWorker_DoWork(object sender, DoWorkEventArgs e)
         {
             List<List<Body>> lFramesBody = new List<List<Body>>();
-            List<VertexC4ubV3f> lFramesVerts = new List<VertexC4ubV3f>();
-            List<int> lFramesTriangles = new List<int>();
+            VertexC4ubV3f[] lFramesVerts = new VertexC4ubV3f[0];
+            int[] lFramesTriangles = new int[0];
             BackgroundWorker worker = (BackgroundWorker)sender;
             while (!worker.CancellationPending)
             {
@@ -249,31 +249,33 @@ namespace KinectServer
                 oServer.CopyLatestFrames();
                 oServer.RequestLastFrames();
                 oServer.CorrectRadialDistortionsForDepthMaps();
-                oServer.GenerateAndGetMesh(lFramesVerts, lFramesBody, lFramesTriangles);
+                oServer.GenerateAndGetMesh(out lFramesVerts, lFramesBody, out lFramesTriangles);
 
                 //Update the vertex and color lists that are common between this class and the OpenGLWindow.
-                lock (lAllVertices)
+                
+                lock (lAllVerticesLock)
                 {
-                    lAllVertices.Clear();
-                    lAllBodies.Clear();
-                    lAllTriangles.Clear();
-
-
+                    //lAllVertices.Clear();
+                    //lAllBodies.Clear();
+                    //lAllTriangles.Clear();
+             
                     int TotalVerticesCount = 0;
                     int TotalTrianglesElementsCount = 0;
                     int ActTotalTrianglesElementsCount = 0;
-                    lAllVertices.AddRange(lFramesVerts);
-                    lAllTriangles.AddRange(lFramesTriangles);
+                    lAllVertices = lFramesVerts;
+                    lAllTriangles = lFramesTriangles;
+                    //lAllVertices.AddRange(lFramesVerts);
+                    //lAllTriangles.AddRange(lFramesTriangles);
                     for (int i = 0; i < lAllBodies.Count; i++)
                     {
                         lAllBodies.AddRange(lFramesBody[i]);
 
-                        ActTotalTrianglesElementsCount = lAllTriangles.Count;
+                        ActTotalTrianglesElementsCount = lAllTriangles.Count();
                         for (int v = TotalTrianglesElementsCount; v < ActTotalTrianglesElementsCount; v++)
                             lAllTriangles[v] += TotalVerticesCount / 3;
 
-                        TotalTrianglesElementsCount = lAllTriangles.Count;
-                        TotalVerticesCount = lAllVertices.Count;           
+                        TotalTrianglesElementsCount = lAllTriangles.Count();
+                        TotalVerticesCount = lAllVertices.Count();           
                     }
 
                 }
@@ -281,15 +283,20 @@ namespace KinectServer
                 // adding camera poses is in separate range, because oServer.lCameraPoses "get" locks oClientSocketLock 
                 // that may cause deadlock when locking with lAllVertices
                 List<AffineTransform> cameraPoses = oServer.lCameraPoses;
-
-                lock (lAllVertices)
+                
+                lock (lAllVerticesLock)
                 {
                     lAllCameraPoses.Clear();
                     lAllCameraPoses.AddRange(cameraPoses);
                 }
                 //Notes the fact that a new frame was downloaded, this is used to estimate the FPS.
                 if (oOpenGLWindow != null)
-                    oOpenGLWindow.CloudUpdateTick();            
+                {
+                    oOpenGLWindow.SetNewVerticesAndTriangles(lAllVertices, lAllTriangles);
+                    oOpenGLWindow.CloudUpdateTick();
+                }
+
+                oTransferServer.updateMesh(lAllVertices, lAllTriangles);
             }
         }
         

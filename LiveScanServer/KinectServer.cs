@@ -34,13 +34,20 @@ namespace KinectServer
 
         [DllImport("NativeUtils.dll")]
         static extern void generateMeshFromDepthMaps(int n_maps, byte[] depth_maps, byte[] depth_colors,
-            int[] widths, int[] heights, float[] iparams, float[] tparams, ref Mesh out_mesh, bool bColorTransfer,
-            float minX, float minY, float minZ, float maxX, float maxY,  float maxZ);
+            int[] widths, int[] heights, float[] iparams, float[] tparams, ref Mesh out_mesh, bool bcolor_transfer,
+            float minX, float minY, float minZ, float maxX, float maxY,  float maxZ, bool bgenerate_triangles);
 
+        
         [DllImport("NativeUtils.dll")]
-        static extern void generateTrianglesWithColorsFromDepthMap(int n_maps, byte[] depth_maps, byte[] depth_colors,
-            int[] widths, int[] heights, float[] iparams, float[] tparams, ref Mesh out_mesh, int depth_map_index);
+        static extern void generateVerticesFromDepthMap(byte[] depth_maps, byte[] depth_colors,
+            int[] widths, int[] heights, float[] iparams, float[] tparams, ref Mesh out_mesh,
+            float minX, float minY, float minZ, float maxX, float maxY, float maxZ, int depth_map_index);
 
+        /*
+        [DllImport("NativeUtils.dll")]
+        static extern void generateWithColorsFromDepthMap(int n_maps, byte[] depth_maps, byte[] depth_colors,
+            int[] widths, int[] heights, float[] iparams, float[] tparams, ref Mesh out_mesh, int depth_map_index);
+            */
         [DllImport("NativeUtils.dll")]
         static extern void depthMapAndColorSetRadialCorrection(int n_maps, byte[] depth_maps, byte[] depth_colors,
             int[] widths, int[] heights, float[] iparams);
@@ -283,11 +290,11 @@ namespace KinectServer
             }
         }
 
-        public bool GetStoredFrame(List<VertexC4ubV3f> lVerticesWithColors, List<int> lFrameTriangles)
+        public bool GetStoredFrame(out VertexC4ubV3f[] lVerticesWithColors, out int[] lFrameTriangles)
         {
             bool bNoMoreStoredFrames;
-            lVerticesWithColors.Clear();
-            lFrameTriangles.Clear();
+            lVerticesWithColors = null;
+            lFrameTriangles = null;
 
             lock (oFrameRequestLock)
             {
@@ -322,7 +329,7 @@ namespace KinectServer
                 {
                     CopyLatestFrames();
                     CorrectRadialDistortionsForDepthMaps();
-                    GenerateMesh(lVerticesWithColors, lFrameTriangles);
+                    GenerateMesh(out lVerticesWithColors, out lFrameTriangles);
                 }
             }
 
@@ -332,46 +339,45 @@ namespace KinectServer
                 return true;
         }
 
-        private List<int> CopyMeshToTrianglesList(Mesh mesh)
+        private int[] CopyMeshToTrianglesArray(Mesh mesh)
         {
             if (mesh.nTriangles == 0)
-                return new List<int>();
+                return new int[0];
 
             int[] triangles = new int[mesh.nTriangles * 3];
 
             Marshal.Copy(mesh.triangles, triangles, 0, mesh.nTriangles * 3);
 
-            return triangles.ToList<int>();
+            return triangles;
         }
 
-        public void GenerateMesh(List<VertexC4ubV3f> lVerticesWithColours, List<int> lFrameTriangles)
+        public void GenerateMesh(out VertexC4ubV3f[] lVerticesWithColours, out int[] lFrameTriangles)
         {
             Mesh mesh = new Mesh();
             mesh.nVertices = 0;
+            lVerticesWithColours = new VertexC4ubV3f[0];
+            lFrameTriangles = new int[0]; 
 
             int nClients = nFramesCopied;
 
-            lVerticesWithColours.Clear();
-            lFrameTriangles.Clear();
+            if (nClients != 0)
+            {
+                generateMeshFromDepthMaps(nClients, depthMaps, depthColors, widths, heights, intrinsicsParams, transformParams, ref mesh, oSettings.bColorTransfer,
+                    oSettings.aMinBounds[0], oSettings.aMinBounds[1], oSettings.aMinBounds[2],
+                    oSettings.aMaxBounds[0], oSettings.aMaxBounds[1], oSettings.aMaxBounds[2],
+                    oSettings.bGenerateTriangles);
 
-            if (nClients == 0)
-                return; 
-            
-            generateMeshFromDepthMaps(nClients, depthMaps, depthColors, widths, heights, intrinsicsParams, transformParams, ref mesh, oSettings.bColorTransfer,
-                oSettings.aMinBounds[0], oSettings.aMinBounds[1], oSettings.aMinBounds[2],
-                oSettings.aMaxBounds[0], oSettings.aMaxBounds[1], oSettings.aMaxBounds[2]);
-
-            lVerticesWithColours.AddRange(CopyMeshToVerticesWithColours(mesh));
-            lFrameTriangles.AddRange(CopyMeshToTrianglesList(mesh));
-            deleteMesh(ref mesh);
-
+                lVerticesWithColours = CopyMeshToVerticesWithColoursArray(mesh);
+                lFrameTriangles = CopyMeshToTrianglesArray(mesh);
+                deleteMesh(ref mesh);
+            }
         }
 
-        private List<VertexC4ubV3f> CopyMeshToVerticesWithColours(Mesh mesh)
+        private VertexC4ubV3f[] CopyMeshToVerticesWithColoursArray(Mesh mesh)
         {
             int nElements = mesh.nVertices;
             if (nElements == 0)
-                return new List<VertexC4ubV3f>();
+                return new VertexC4ubV3f[0];
 
             byte[] byteVertices = new byte[nElements * 4 * sizeof(int)];
             Marshal.Copy(mesh.verticesWithColors, byteVertices, 0, nElements * 4 * sizeof(int));
@@ -379,7 +385,7 @@ namespace KinectServer
 
             vertices = FromByteArray<VertexC4ubV3f>(byteVertices);
 
-            return vertices.ToList<VertexC4ubV3f>();
+            return vertices;
         }
 
         public void RequestLastFrames()
@@ -494,18 +500,18 @@ namespace KinectServer
         }
 
         // Function doesn't put request for frames, assume, that they alreade have been copied
-        public void GenerateAndGetMesh(List<VertexC4ubV3f> lFrameVerts, List<List<Body>> lFramesBody, List<int> lFramesTriagles)
+        public void GenerateAndGetMesh(out VertexC4ubV3f[] lFrameVerts, List<List<Body>> lFramesBody, out int[] lFramesTriagles)
         {
-            GenerateMesh(lFrameVerts, lFramesTriagles);
+            GenerateMesh(out lFrameVerts, out lFramesTriagles);
             lFramesBody = new List<List<Body>>(lStoredBodies);
         }
 
-        public void GetLatestFrame(List<VertexC4ubV3f> lFrameVerts, List<List<Body>> lFramesBody, List<int> lFramesTriagles)
+        public void GetLatestFrame(out VertexC4ubV3f[] lFrameVerts, List<List<Body>> lFramesBody, out int[] lFramesTriagles)
         {
             RequestLastFrames();
             CopyLatestFrames();
             CorrectRadialDistortionsForDepthMaps();
-            GenerateMesh(lFrameVerts, lFramesTriagles);
+            GenerateMesh(out lFrameVerts, out lFramesTriagles);
             lFramesBody = new List<List<Body>>(lStoredBodies);
         }
 
@@ -517,7 +523,7 @@ namespace KinectServer
                 return;
             depthMapAndColorSetRadialCorrection(nClients, depthMaps, depthColors, widths, heights, intrinsicsParams);
         }
-
+        
         public void GetLatestFrameVerticesOnly(List<List<VertexC4ubV3f>> lFrameVerts)
         {
             RequestLastFrames();
@@ -535,12 +541,18 @@ namespace KinectServer
                 lFrameVerts.Add(new List<VertexC4ubV3f>());
                 Mesh mesh = new Mesh();
                 mesh.nVertices = 0;
-                generateTrianglesWithColorsFromDepthMap(nClients, depthMaps, depthColors, widths, heights, intrinsicsParams, transformParams, ref mesh, i);
-                lFrameVerts[i].AddRange(CopyMeshToVerticesWithColours(mesh));
+
+                //generateTrianglesWithColorsFromDepthMap(nClients, depthMaps, depthColors, widths, heights, intrinsicsParams, transformParams, ref mesh, i);
+                generateVerticesFromDepthMap(depthMaps, depthColors, widths, heights,
+                    intrinsicsParams, transformParams, ref mesh,
+                    oSettings.aMinBounds[0], oSettings.aMinBounds[1], oSettings.aMinBounds[2],
+                    oSettings.aMaxBounds[0], oSettings.aMaxBounds[1], oSettings.aMaxBounds[2], i);
+
+                lFrameVerts[i] = CopyMeshToVerticesWithColoursArray(mesh).ToList();
                 deleteMesh(ref mesh);
             }
         }
-
+        
         public void ClearStoredFrames()
         {
             lock (oClientSocketLock)

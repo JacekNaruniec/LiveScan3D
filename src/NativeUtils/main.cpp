@@ -165,11 +165,14 @@ int main()
 
 	SimpleTimer timer; 
 
-	timer.start(); 
-	generateMeshFromDepthMaps(1, depth_maps, depth_colors,
-		widths, heights, intr_params, wtransform_params, &mesh, true, -5.0f, -5.0f, 
-		-5.0f, 5.0f, 5.0f, 5.0f);
-	timer.stop();
+	for (int i = 0; i < 1; i++)
+	{
+		timer.start();
+		generateMeshFromDepthMaps(1, depth_maps, depth_colors,
+			widths, heights, intr_params, wtransform_params, &mesh, true, -5.0f, -5.0f,
+			-5.0f, 5.0f, 5.0f, 5.0f, true);
+		timer.stop();
+	}
 	int ms = timer.getMilliseconds();
 	
 	/* create reference data */

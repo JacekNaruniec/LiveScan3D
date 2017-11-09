@@ -13,6 +13,12 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Source Files\additional_utils">
+      <UniqueIdentifier>{be440fbc-acb3-4f34-aa4f-760a2128b417}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\additional_utils">
+      <UniqueIdentifier>{307c73a4-fb91-4c34-9647-eb8fbd4d0afa}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\nanoflann.h">
@@ -27,11 +33,26 @@
     <ClInclude Include="..\include\NativeUtils\meshGenerator.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\NativeUtils\pgm.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\include\NativeUtils\colorcorrection.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\NativeUtils\pgm.h">
+      <Filter>Header Files\additional_utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\NativeUtils\fileutils.h">
+      <Filter>Header Files\additional_utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\NativeUtils\simplegraphic.h">
+      <Filter>Header Files\additional_utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\NativeUtils\simpleimage.h">
+      <Filter>Header Files\additional_utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\NativeUtils\simplerect.h">
+      <Filter>Header Files\additional_utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\NativeUtils\simplepoint.h">
+      <Filter>Source Files\additional_utils</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -47,11 +68,20 @@
     <ClCompile Include="..\src\NativeUtils\meshGenerator.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\NativeUtils\pgm.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\NativeUtils\colorcorrection.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\NativeUtils\pgm.cpp">
+      <Filter>Source Files\additional_utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\NativeUtils\fileutils.cpp">
+      <Filter>Source Files\additional_utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\NativeUtils\simplegraphic.cpp">
+      <Filter>Source Files\additional_utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\NativeUtils\simpleimage.cpp">
+      <Filter>Source Files\additional_utils</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

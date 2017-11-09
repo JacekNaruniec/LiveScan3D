@@ -7,7 +7,7 @@ using System.Threading;
 
 using System.Net.Sockets;
 using System.Net;
-
+using System.Diagnostics;
 
 namespace KinectServer
 {
@@ -20,8 +20,10 @@ namespace KinectServer
     }
     public class TransferServer
     {
-        public List<VertexC4ubV3f> lVertices = new List<VertexC4ubV3f>();
-        public List<int> lTriangles = new List<int>();
+        List<VertexC4ubV3f> lVerticesCloned = new List<VertexC4ubV3f>();
+        List<int> lTrianglesCloned = new List<int>();
+
+        object meshCopyLock = new object();
 
         TcpListener oListener;
         List<TransferSocket> lClientSockets = new List<TransferSocket>();
@@ -76,8 +78,20 @@ namespace KinectServer
                 }
                 catch (SocketException)
                 {
+
                 }
                 System.Threading.Thread.Sleep(100);
+            }
+        }
+
+        //public void setN
+
+        public void updateMesh(VertexC4ubV3f[] lVertices, int[] lTriangles)
+        {
+            lock (meshCopyLock)
+            {
+                lVerticesCloned = new List<VertexC4ubV3f>(lVertices);
+                lTrianglesCloned = new List<int>(lTriangles);
             }
         }
 
@@ -105,15 +119,6 @@ namespace KinectServer
 
             while (bServerRunning)
             {
-                lock (lVertices)
-                   if (lVertices.Count > 0)
-                    {
-                        List<VertexC4ubV3f> lVerticesCloned2 = new List<VertexC4ubV3f>(lVertices);
-                        List<int> lTrianglesCloned2 = new List<int>(lTriangles);
-                        MeshChunks meshChunks = formMeshChunks(lVerticesCloned2, lTrianglesCloned2);
-                    }
-
-
                 lock (oClientSocketLock)
                 {
 
@@ -125,17 +130,31 @@ namespace KinectServer
                         {
                             if (buffer[0] == 0)
                             {
-                               List<VertexC4ubV3f> lVerticesCloned;
-                               List<int> lTrianglesCloned;
+                               List<VertexC4ubV3f> lVerticesClonedLocal;
+                               List<int> lTrianglesClonedLocal;
 
-                                lock (lVertices)
+                                lock (meshCopyLock)
                                 {
-                                    lVerticesCloned = new List<VertexC4ubV3f>(lVertices);
-                                    lTrianglesCloned = new List<int>(lTriangles);
+                                    lVerticesClonedLocal = new List<VertexC4ubV3f>(lVerticesCloned);
+                                    lTrianglesClonedLocal = new List<int>(lTrianglesCloned);
                                 }
 
-                                MeshChunks meshChunks = formMeshChunks(lVerticesCloned, lTrianglesCloned);
-                                lClientSockets[i].SendFrame(meshChunks);
+                                if (lTrianglesClonedLocal.Count > 0)
+                                {
+                                    MeshChunks meshChunks = formMeshChunks(lVerticesClonedLocal, lTrianglesClonedLocal);
+                                    Stopwatch sw = new Stopwatch();
+                                    sw.Start(); 
+                                    lClientSockets[i].SendFrame(meshChunks);
+                                    sw.Stop(); 
+                                    Console.WriteLine("Sending elapsed={0}", sw.ElapsedMilliseconds);
+
+                                }
+                                else if (lVerticesClonedLocal.Count > 0)
+                                {
+                                    MeshChunks meshChunks = formVerticesChunks(lVerticesClonedLocal);
+                                    lClientSockets[i].SendFrame(meshChunks);
+
+                                }
                             }
 
                             buffer = lClientSockets[i].Receive(1);
@@ -155,8 +174,33 @@ namespace KinectServer
             Array.Copy(data, index, result, 0, length);
             return result;
         }
+        private MeshChunks formVerticesChunks(List<VertexC4ubV3f> lVertices)
+        {
+            int chunkSizeLimit = 65000 - 3;
 
-        private MeshChunks formMeshChunks(List<VertexC4ubV3f> lVertices, List<int> lTriangles)
+            MeshChunks ret = new MeshChunks();
+            int nVertices = lVertices.Count();
+            List<int> trianglesInChunks = new List<int>();
+            List<int> verticesInChunks = new List<int>();
+            int currentVertex = 0;
+
+            while (currentVertex < nVertices)
+            {
+                int size = Math.Min(chunkSizeLimit, nVertices - currentVertex);
+                verticesInChunks.Add(size);
+                trianglesInChunks.Add(0);
+                currentVertex += size; 
+            }
+
+            ret.lTriangles = new List<int>();
+            ret.lVertices = new List<VertexC4ubV3f>(lVertices);
+            ret.trianglesChunkSizes = trianglesInChunks;
+            ret.verticesChunkSizes = verticesInChunks;
+            return ret;
+        }
+
+
+    private MeshChunks formMeshChunks(List<VertexC4ubV3f> lVertices, List<int> lTriangles)
         {
             int chunkSizeLimit = 65000 - 3;
 
@@ -177,6 +221,11 @@ namespace KinectServer
                 chunkIndex[v] = -1;
 
             int verticesInCurrentChunk = 0;
+
+            Stopwatch sw = new Stopwatch();
+
+            sw.Start(); 
+
             for (int t = 0; t < nTriangles * 3; t++)
             {
                 int val = lTriangles[t];
@@ -202,7 +251,6 @@ namespace KinectServer
                     verticesInCurrentChunk = 0;
                     trianglesChunkStart = t;
                 }
-
             }
 
             if (verticesInCurrentChunk!=0)
@@ -215,6 +263,11 @@ namespace KinectServer
             ret.lVertices = new List<VertexC4ubV3f>(SubArray(newVertices, 0, currentVertex));
             ret.trianglesChunkSizes = trianglesInChunks;
             ret.verticesChunkSizes = verticesInChunks;
+
+            sw.Stop();
+
+            Console.WriteLine("Forming elapsed={0}", sw.ElapsedMilliseconds);
+
             return ret; 
         }
     }

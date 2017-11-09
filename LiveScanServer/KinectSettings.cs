@@ -47,6 +47,7 @@ namespace KinectServer
         public bool bMergeScansForSave = true;
         public bool bSaveAsBinaryPLY = true;
         public bool bColorTransfer = false;
+        public bool bGenerateTriangles = true; 
 
         public KinectSettings()
         {
