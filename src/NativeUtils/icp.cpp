@@ -15,6 +15,8 @@
 #include "icp.h"
 #include "opencv\cv.h"
 
+using namespace std; 
+
 void FindClosestPointForEach(PointCloud &sourceCloud, cv::Mat &destPoints, vector<float> &distances, vector<size_t> &indices)
 {
 	int nVerts2 = destPoints.rows;

@@ -9,9 +9,6 @@
 #   define ICP_API   __declspec(dllimport)
 #endif  
 
-
-using namespace std;
-
 struct Point3f
 {
 	float X, Y, Z;

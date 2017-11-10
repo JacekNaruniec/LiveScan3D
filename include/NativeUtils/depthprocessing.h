@@ -50,21 +50,21 @@ struct Mesh
 struct WorldTranformation
 {
 	std::vector<float> t;
-	std::vector<vector<float>> R;
+	std::vector<std::vector<float>> R;
 	WorldTranformation() {}
 
 	WorldTranformation(float *p)
 	{
 		t.resize(3);
 		memcpy(t.data(), p, 3 * sizeof(float));
-		R = vector<vector<float>>(3, vector<float>(3));
+		R = std::vector<std::vector<float>>(3, std::vector<float>(3));
 		for (int i = 0; i < 3; i++)
 			memcpy(R[i].data(), p + 3 + 3 * i, 3 * sizeof(float));
 	}
 
 	void inv()
 	{
-		std::vector<vector<float>> Rt(3, vector<float>(3));
+		std::vector<std::vector<float>> Rt(3, std::vector<float>(3));
 		for (int i = 0; i < 3; i++)
 		{
 			t[i] = -t[i];
@@ -77,14 +77,13 @@ struct WorldTranformation
 
 struct VerticesWithDepthColorMaps
 {
-	vector<Point3f> vertices;
-	vector<unsigned char> colors;
-	vector<int> depth_to_vertices_map;
-	vector<int> vertices_to_depth_map;
-	vector<bool> point_assigned; 
-	vector<unsigned short> depth_map; 
-	vector<unsigned short> confidence_map; 
-	vector<float> steepness_map; 
+	std::vector<Point3f> vertices;
+	std::vector<unsigned char> colors;
+	std::vector<int> depth_to_vertices_map;
+	std::vector<int> vertices_to_depth_map;
+	std::vector<bool> point_assigned;
+	std::vector<unsigned short> depth_map;
+	std::vector<unsigned short> confidence_map;
 };
 
 struct IntrinsicCameraParameters
