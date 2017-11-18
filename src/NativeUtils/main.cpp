@@ -181,13 +181,14 @@ int main()
 	fwrite(mesh.triangles, sizeof(mesh.triangles[0]), mesh.nTriangles, ref);
 	fwrite(&mesh.nVertices, sizeof(mesh.nVertices), 1, ref);
 	fwrite(mesh.vertices, sizeof(mesh.vertices[0]), mesh.nVertices, ref);
-	fclose(ref);
-	*/
+	fclose(ref);*/
+	
 	printf("\n Created %d vertices", mesh.nVertices);
 	printf("\n Created %d triangles", mesh.nTriangles);
 
 	// compare to reference data
-	FILE *ref_test = fopen("ref.bin", "rb");
+	//FILE *ref_test = fopen("ref_face.bin", "rb");
+	FILE *ref_test = fopen("ref_na_gorze.bin", "rb");
 	Mesh ref_mesh; 
 	fread(&ref_mesh.nTriangles, sizeof(ref_mesh.nTriangles), 1, ref_test);
 	ref_mesh.triangles = new int[ref_mesh.nTriangles];
