@@ -169,8 +169,11 @@ int main()
 	{
 		timer.start();
 		generateMeshFromDepthMaps(1, depth_maps, depth_colors,
-			widths, heights, intr_params, wtransform_params, &mesh, true, -5.0f, -5.0f,
-			-5.0f, 5.0f, 5.0f, 5.0f, true);
+			widths, heights, intr_params, wtransform_params, &mesh, true, -1.0f, -1.0f,
+			-0.5f, 1.0f, 1.0f, 1.0f, true);
+		//generateMeshFromDepthMaps(1, depth_maps, depth_colors,
+		//	widths, heights, intr_params, wtransform_params, &mesh, true, -500.0f, -500.0f,
+		//	-500.0f, 500.0f, 500.0f, 500.0f, true);
 		timer.stop();
 	}
 	int ms = timer.getMilliseconds();
@@ -185,6 +188,15 @@ int main()
 	
 	printf("\n Created %d vertices", mesh.nVertices);
 	printf("\n Created %d triangles", mesh.nTriangles);
+
+	printf("\nProcessing took %d [ms] ", ms);
+
+	printf("\nSaving mesh to PLY file\n");
+	savePLY("mesh.ply", mesh);
+	printf("PLY saved\n");
+
+	getchar();
+	return 0;
 
 	// compare to reference data
 	//FILE *ref_test = fopen("ref_face.bin", "rb");
@@ -202,11 +214,6 @@ int main()
 	printf("\n\n Reference %d vertices", ref_mesh.nVertices);
 	printf("\n Reference %d triangles", ref_mesh.nTriangles);
 
-	printf("\nProcessing took %d [ms] ", ms);
-
-	printf("\nSaving mesh to PLY file\n");
-	savePLY("mesh.ply", mesh);
-	printf("PLY saved\n");
 
 
 	if (ref_mesh.nVertices != mesh.nVertices)

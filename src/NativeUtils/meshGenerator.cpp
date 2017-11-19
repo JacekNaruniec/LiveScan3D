@@ -43,7 +43,7 @@ bool MeshGenerator::checkTriangleConstraints(UINT16 *depth_ptr1, UINT16 *depth_p
 		if (val_forward != 0)
 		{
 			int gradient_forward = val_forward - val2;
-			if (abs(val2 - val1 - gradient_forward) < depth_thr)
+			if (abs(val2 - val1 - gradient_forward * 0.3) < depth_thr)
 				continue;
 		}
 
@@ -52,7 +52,7 @@ bool MeshGenerator::checkTriangleConstraints(UINT16 *depth_ptr1, UINT16 *depth_p
 		if (val_backward != 0)
 		{
 			int gradient_backward = val1 - val_backward;
-			if (abs(val2 - val1 - gradient_backward) < depth_thr)
+			if (abs(val2 - val1 - gradient_backward * 0.3) < depth_thr)
 				continue;
 		}
 		return false;
