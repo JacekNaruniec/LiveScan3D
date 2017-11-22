@@ -15,14 +15,61 @@
 // defines for testing only
 //#define STORE_FRAMES_INFORMATION
 #define LOAD_FRAMES_INFORMATION
-#define DEBUG_IMAGES
+//#define DEBUG_IMAGES
 //#define SHOW_TIMINGS
-#define PERFORM_ICP
+//#define PERFORM_ICP
 //#define LOAD_REFINED_ICP
+#define FILTER_FLYING_PIXELS
+//#define CONVEX_HULL
 
 using namespace std;
 
 
+// DELETE ME!!! - i'm in kinectCapture.cpp
+void filterFlyingPixels(int neighbourhoodSize, float thr, int maxNonFittingNeighbours, int w, int h, unsigned short *depth_map)
+{
+	int nDepthPixels = w*h;
+	int nNeighbours = (neighbourhoodSize * 2 + 1) * (neighbourhoodSize * 2 + 1) - 1;
+	std::vector<int> shifts(nNeighbours);
+	int *pshifts = shifts.data();
+	int shift_n = 0;
+
+	for (int x = -neighbourhoodSize; x <= neighbourhoodSize; x++)
+		for (int y = -neighbourhoodSize; y <= neighbourhoodSize; y++)
+		{
+			if (x == 0 && y == 0)
+				continue;
+
+			shifts[shift_n] = x * w + y;
+			shift_n++;
+		}
+
+	maxNonFittingNeighbours = nNeighbours / 2;
+
+	std::vector<int> indexesToRemove;
+	for (int y = neighbourhoodSize; y < h - neighbourhoodSize; y++)
+	{
+		int rowPos = y*w;
+		UINT16 *rowPtr = depth_map + rowPos;
+		for (int x = neighbourhoodSize; x < w - neighbourhoodSize; x++)
+		{
+			int val = rowPtr[x];
+			int n_diff = 0;
+			for (int shift = 0; shift < nNeighbours; shift++)
+			{
+				int diff = abs(rowPtr[x + shifts[shift]] - val);
+				if (diff > thr)
+					n_diff++;
+			}
+			if (n_diff > maxNonFittingNeighbours)
+				indexesToRemove.push_back(rowPos + x);
+		}
+	}
+
+	for (size_t i = 0; i < indexesToRemove.size(); i++)
+		depth_map[indexesToRemove[i]] = 0;
+}
+// --------------------------------------
 
 void RotatePoint(Point3f &point, std::vector<std::vector<float>> &R)
 {
@@ -80,7 +127,6 @@ void createVertices(unsigned short *depth_map, unsigned char *depth_colors, int 
 				if (p.X<minX || p.X > maxX || p.Y < minY || p.Y > maxY || p.Z <minZ || p.Z >maxZ)
 					continue;
 
-
 				vertices_with_maps.depth_to_vertices_map[pos] = n_vertices;
 				vertices_with_maps.vertices_to_depth_map[n_vertices] = pos;
 
@@ -103,8 +149,6 @@ void createVertices(unsigned short *depth_map, unsigned char *depth_colors, int 
 	vertices_with_maps.vertices_to_depth_map.resize(n_vertices);
 	vertices_with_maps.point_assigned = vector<bool>(w*h, false);
 }
-
-
 
 void depthMapAndColorRadialCorrection(unsigned short *depth_map, unsigned char *colors, int w, int h, IntrinsicCameraParameters &intrinsic_params)
 {
@@ -660,9 +704,12 @@ void mapDepthMap(VerticesWithDepthColorMaps &vertices_with_maps, WorldTranformat
 
 	vector<vector<float>> totalR;
 
-	out_wt.inv();
+	//out_wt.inv();
+	in_wt.inv();
+	
+	totalR = multiply3x3Matrices(in_wt.R, out_wt.R);
 
-	totalR = multiply3x3Matrices(out_wt.R, in_wt.R);
+	//totalR = multiply3x3Matrices(out_wt.R, in_wt.R);
 
 	for (int src_y = 0; src_y < h; src_y++)
 	{
@@ -825,7 +872,8 @@ void morphologyErode(vector<unsigned short> &depth_map, int w, int h)
 void assignDepthMapOverlay(vector<VerticesWithDepthColorMaps> &vertices_with_maps,
 	vector<int> &depth_to_vertices_map, vector<vector<unsigned char>> &map_indexes, vector<WorldTranformation> &wt, vector<IntrinsicCameraParameters> &ip, int overlayed_index, int base_map_index, int w, int h)
 {
-	const int depth_threshold = 20;
+	//const int depth_threshold = 20;
+	int depth_threshold;
 
 	vector<unsigned short> &depth_map = vertices_with_maps[base_map_index].depth_map;
 	//vector<unsigned short> depth_map_copy = vertices_with_maps[base_map_index].depth_map;
@@ -870,6 +918,7 @@ void assignDepthMapOverlay(vector<VerticesWithDepthColorMaps> &vertices_with_map
 		if (depth_map[el] == 0 || vertices_with_maps[base_map_index].point_assigned[el])
 			continue; 
 
+		depth_threshold = (int)(depth_map[el] / 3.0 * 0.00272 + 7.273);
 		int diff = abs(depth_map[el] - mapped_depth_map[el]);
 		if (diff < depth_threshold)
 		{
@@ -1065,7 +1114,7 @@ void clearMapConvexHull(vector<VerticesWithDepthColorMaps> &vertices_with_maps, 
 		//mapPointToDifferentDepthMap(ov_x, ov_y, overlay_depth_map[ov_x + ov_y * w],
 		//	xt, yt, dt, totalROverlayToBase, overlay_wt, overlay_ip, base_wt_inv, base_ip);
 
-		if (cos_angle > 0) // angle > 90 degrees
+		//if (cos_angle > 0) // angle > 90 degrees
 		{
 			if (d2 > (d1 + 100))
 			{
@@ -1074,7 +1123,7 @@ void clearMapConvexHull(vector<VerticesWithDepthColorMaps> &vertices_with_maps, 
 				continue;
 			}
 		}
-		else
+		/*else
 		{
 			if (d1 > (d2 + 100))
 			{
@@ -1082,7 +1131,7 @@ void clearMapConvexHull(vector<VerticesWithDepthColorMaps> &vertices_with_maps, 
 				//base_confidence[el] = 0;
 				continue;
 			}
-		}
+		}*/
 	}
 }
 
@@ -1658,11 +1707,20 @@ DEPTH_PROCESSING_API void __stdcall generateMeshFromDepthMaps(int n_maps, unsign
 		"d:/Projekty/LiveScan3D/dane/marekpokoj2.bin",					// 10
 		"d:/Projekty/LiveScan3D/dane/marek_gitara3.bin",				// 11
 		"d:/Projekty/LiveScan3D/dane/frames_info_3_na_gorze.bin",		// 12
-		"d:/Projekty/LiveScan3D/dane/frames_info_face.bin",				// 13								
+		"d:/Projekty/LiveScan3D/dane/frames_info_face.bin",				// 13
+		"d:/Projekty/LiveScan3D/dane/frames_info_znacznik_3_bez_filtra.bin", // 14
+		"d:/Projekty/LiveScan3D/dane/frames_info_gitara_3_bez_filtra_dobre!.bin", // 15
+		"d:/Projekty/LiveScan3D/dane/frames_info_gitara_3_kinecty_ez_filtra.bin", // 16
+		"d:/Projekty/LiveScan3D/dane/frames_info_frames_info_gitara_bez filtra_jeden_k.bin.bin", // 17
 	};
 
-	loadAllFramesInformation(filenames[6], n_maps, &depth_maps, &depth_colors, &widths, &heights, &intr_params, &wtransform_params);
+	loadAllFramesInformation(filenames[14], n_maps, &depth_maps, &depth_colors, &widths, &heights, &intr_params, &wtransform_params);
 
+#endif
+
+#ifdef FILTER_FLYING_PIXELS
+	for (int i=0; i<n_maps; i++)
+		filterFlyingPixels(1, 20, 4, widths[0], heights[0], (unsigned short*)(depth_maps + i * widths[0] * heights[0] * 2));
 #endif
 
 	vector<VerticesWithDepthColorMaps> vertices_with_maps(n_maps);
@@ -1745,9 +1803,12 @@ DEPTH_PROCESSING_API void __stdcall generateMeshFromDepthMaps(int n_maps, unsign
 	}
 #endif
 
+#ifdef CONVEX_HULL
 	clearAllMapsConvexHull(vertices_with_maps, world_transforms, intrinsic_params, widths, heights);
 	for (int i = 0; i < vertices_with_maps.size(); i++)
 		memcpy(depth_maps + i * widths[0] * heights[0] * 2, vertices_with_maps[i].depth_map.data(), widths[0] * heights[0] * 2);
+#endif
+
 	generateVerticesFromDepthMaps(depth_maps, depth_colors, widths, heights, world_transforms, intrinsic_params, vertices_with_maps,
 		minX, minY, minZ, maxX, maxY, maxZ);
 
