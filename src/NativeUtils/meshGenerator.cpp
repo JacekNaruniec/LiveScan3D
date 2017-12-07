@@ -23,7 +23,7 @@ bool MeshGenerator::checkTriangleConstraints(UINT16 *depth_ptr1, UINT16 *depth_p
 		return false;
 
 	// linear threshold set, that for the depth 1000 (1m) threshold is 10 (1 cm), at the depth 12000 (12m) threshold is 40 (4 cm)
-	const int depth_thr = (int)((vals[0] + vals[1] + vals[2]) / 3.0 * 0.00272 + 7.273);
+	const int depth_thr = (int)((vals[0] + vals[1] + vals[2]) / 3.0 * 0.00272 * 2.0 + 7.273);
 	//const int depth_thr = 10;
 
 	for (int tr = 0; tr < 3; tr++)

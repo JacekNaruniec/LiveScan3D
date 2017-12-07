@@ -83,7 +83,8 @@ struct VerticesWithDepthColorMaps
 	std::vector<int> vertices_to_depth_map;
 	std::vector<bool> point_assigned;
 	std::vector<unsigned short> depth_map;
-	std::vector<unsigned short> confidence_map;
+	std::vector<unsigned char> confidence_map;
+	std::vector<unsigned char> colors_map;
 };
 
 struct IntrinsicCameraParameters

@@ -15,12 +15,12 @@
 // defines for testing only
 //#define STORE_FRAMES_INFORMATION
 #define LOAD_FRAMES_INFORMATION
-//#define DEBUG_IMAGES
+#define DEBUG_IMAGES
 //#define SHOW_TIMINGS
 //#define PERFORM_ICP
 //#define LOAD_REFINED_ICP
 #define FILTER_FLYING_PIXELS
-//#define CONVEX_HULL
+#define CONVEX_HULL
 
 using namespace std;
 
@@ -84,12 +84,29 @@ void RotatePoint(Point3f &point, std::vector<std::vector<float>> &R)
 	point.Z = res.Z;
 }
 
+inline void getVertexCoorinates(int x, int y, unsigned short d, Point3f &p, IntrinsicCameraParameters &params, WorldTranformation &world_transform)
+{
+	p.Z = d / 1000.0f;
+	p.X = (x - params.cx) / params.fx;
+	p.Y = (params.cy - y) / params.fy;
+
+	p.X = p.X * p.Z;
+	p.Y = p.Y * p.Z;
+
+	p.X += world_transform.t[0];
+	p.Y += world_transform.t[1];
+	p.Z += world_transform.t[2];
+	RotatePoint(p, world_transform.R);
+}
+
 void createVertices(unsigned short *depth_map, unsigned char *depth_colors, int w, int h, IntrinsicCameraParameters params, WorldTranformation world_transform, VerticesWithDepthColorMaps &vertices_with_maps,
 	float minX, float minY, float minZ, float maxX, float maxY, float maxZ)
 {
 	auto &vertices = vertices_with_maps.vertices;
 	auto &colors = vertices_with_maps.colors;
+	auto &colors_map = vertices_with_maps.colors_map; 
 
+	colors_map.resize(w*h * 3);
 	colors.resize(w*h * 3);
 	vertices.resize(w*h);
 	int n_pixels = w*h;
@@ -100,6 +117,7 @@ void createVertices(unsigned short *depth_map, unsigned char *depth_colors, int 
 	vertices_with_maps.vertices_to_depth_map = vector<int>(n_pixels, -1);
 	vertices_with_maps.depth_map = vector<unsigned short>(w*h);
 
+	world_transform.inv();
 
 	for (int y = 0; y < h; y++)
 	{
@@ -145,6 +163,7 @@ void createVertices(unsigned short *depth_map, unsigned char *depth_colors, int 
 	colors.resize(n_vertices * 3);
 
 	memcpy(vertices_with_maps.depth_map.data(), depth_map, w*h * sizeof(unsigned short));
+	memcpy(vertices_with_maps.colors_map.data(), depth_colors, w*h * 3);
 
 	vertices_with_maps.vertices_to_depth_map.resize(n_vertices);
 	vertices_with_maps.point_assigned = vector<bool>(w*h, false);
@@ -224,7 +243,7 @@ void depthMapAndColorRadialCorrection(unsigned short *depth_map, unsigned char *
 	memcpy(colors, colors_copy.data(), w*h * 3 * sizeof(colors[0]));
 }
 
-void generateMapConfidence(vector<unsigned short> &depth_map, vector<unsigned short> &confidence_map, int w, int h, int et_limit,
+void generateMapConfidence(vector<unsigned short> &depth_map, vector<unsigned char> &confidence_map, int w, int h, int et_limit,
 	int depth_threshold)
 {
 
@@ -265,7 +284,7 @@ void generateMapConfidence(vector<unsigned short> &depth_map, vector<unsigned sh
 				confidence_map[pos] = 0;
 				continue;
 			}
-
+			
 			bool requirement_met = false;
 			for (int shift = 0; shift < 8; shift++)
 			{
@@ -358,10 +377,10 @@ void generateVerticesConfidence(vector<VerticesWithDepthColorMaps> &vertices_wit
 #ifdef DEBUG_IMAGES
 		char tmp[1024];
 		sprintf(tmp, "test/confidence_%d.pgm", i);
-		vector<unsigned short> temp_cm = vertices_with_maps[i].confidence_map;
+		vector<unsigned char> temp_cm = vertices_with_maps[i].confidence_map;
 		for (int j = 0; j < widths[i] * heights[i]; j++)
 			temp_cm[j] *= 10;
-		writeDepthImage(temp_cm, widths[i], heights[i], tmp);
+		writePGM(tmp, widths[i], heights[i], temp_cm.data());
 #endif
 	}
 
@@ -686,6 +705,30 @@ void mapPointToDifferentDepthMap(int src_x, int src_y, unsigned short src_d, int
 
 }
 
+void mapPointToDifferentDepthMapf(int src_x, int src_y, unsigned short src_d, float &out_x, float &out_y, float &out_d,
+	vector<vector<float>> &totalR, WorldTranformation &in_wt, IntrinsicCameraParameters &in_ip,
+	WorldTranformation &out_wt, IntrinsicCameraParameters &out_ip)
+{
+	Point3f p;
+
+	p.Z = src_d / 1000.0f;
+	p.X = ((src_x - in_ip.cx) / in_ip.fx) * p.Z + in_wt.t[0];
+	p.Y = ((in_ip.cy - src_y) / in_ip.fy) * p.Z + in_wt.t[1];
+	p.Z += in_wt.t[2];
+
+	RotatePoint(p, totalR);
+
+	p.X += out_wt.t[0];
+	p.Y += out_wt.t[1];
+	p.Z += out_wt.t[2];
+
+	out_x = (p.X * out_ip.fx) / p.Z + out_ip.cx;
+	out_y = out_ip.cy - (p.Y * out_ip.fy) / p.Z;
+	out_d = min(max(0.0f, p.Z * 1000.0f), 65535.0f);
+
+}
+
+
 void mapDepthMap(VerticesWithDepthColorMaps &vertices_with_maps, WorldTranformation out_wt, IntrinsicCameraParameters out_ip, WorldTranformation in_wt, IntrinsicCameraParameters in_ip,
 	vector<unsigned short> &out_depth_map, int w, int h, vector<unsigned short> &confidence_map)
 {
@@ -707,7 +750,7 @@ void mapDepthMap(VerticesWithDepthColorMaps &vertices_with_maps, WorldTranformat
 	//out_wt.inv();
 	in_wt.inv();
 	
-	totalR = multiply3x3Matrices(in_wt.R, out_wt.R);
+	totalR = multiply3x3Matrices(out_wt.R, in_wt.R);
 
 	//totalR = multiply3x3Matrices(out_wt.R, in_wt.R);
 
@@ -723,6 +766,7 @@ void mapDepthMap(VerticesWithDepthColorMaps &vertices_with_maps, WorldTranformat
 
 			int x, y;
 			unsigned short d;
+			
 			mapPointToDifferentDepthMap(src_x, src_y, src_d, x, y, d,
 				totalR, in_wt, in_ip, out_wt, out_ip);
 
@@ -868,7 +912,7 @@ void morphologyErode(vector<unsigned short> &depth_map, int w, int h)
 
 	depth_map = map_copy;
 }
-
+/*
 void assignDepthMapOverlay(vector<VerticesWithDepthColorMaps> &vertices_with_maps,
 	vector<int> &depth_to_vertices_map, vector<vector<unsigned char>> &map_indexes, vector<WorldTranformation> &wt, vector<IntrinsicCameraParameters> &ip, int overlayed_index, int base_map_index, int w, int h)
 {
@@ -876,7 +920,6 @@ void assignDepthMapOverlay(vector<VerticesWithDepthColorMaps> &vertices_with_map
 	int depth_threshold;
 
 	vector<unsigned short> &depth_map = vertices_with_maps[base_map_index].depth_map;
-	//vector<unsigned short> depth_map_copy = vertices_with_maps[base_map_index].depth_map;
 	WorldTranformation base_wt = wt[base_map_index];
 	base_wt.inv();
 
@@ -889,9 +932,6 @@ void assignDepthMapOverlay(vector<VerticesWithDepthColorMaps> &vertices_with_map
 
 	mapDepthMap(vertices_with_maps[overlayed_index], wt[base_map_index], ip[base_map_index], wt[overlayed_index], ip[overlayed_index],
 		mapped_depth_map, w, h, overlay_confidence);
-	//mapDepthMap(vertices_with_maps[overlayed_index], wt[base_map_index], ip[base_map_index], mapped_depth_map, w, h, overlay_confidence);
-
-
 
 	vector<unsigned char> replace_mask(w * h, 0);
 	vector<PointProjection> projections;
@@ -905,26 +945,22 @@ void assignDepthMapOverlay(vector<VerticesWithDepthColorMaps> &vertices_with_map
 	{
 		testImages[i].create(w, h, 3, nullptr);
 		for (int el = 0; el < w*h; el++)
-			testImages[i].data_ptr[el * 3 + 1] = vertices_with_maps[i].confidence_map[el] * 10;
+			testImages[i].data_ptr[el * 3 + 1] = (unsigned char)vertices_with_maps[i].depth_map[el];
 	}
 #endif
 
 	for (int el = 0; el < w*h; el++)
 	{
-
-		if (el == 291 + 214 * w)
-			el = el;
-
 		if (depth_map[el] == 0 || vertices_with_maps[base_map_index].point_assigned[el])
 			continue; 
 
-		depth_threshold = (int)(depth_map[el] / 3.0 * 0.00272 + 7.273);
+		depth_threshold = (int)(depth_map[el] * 0.00272 + 7.273) + 13.727;
+		//depth_threshold = 20;
 		int diff = abs(depth_map[el] - mapped_depth_map[el]);
 		if (diff < depth_threshold)
 		{
-
-			if (overlay_confidence[el] > confidence_threshold
-				|| overlay_confidence[el] >= base_confidence[el])
+			if ((overlay_confidence[el] > confidence_threshold
+				|| overlay_confidence[el] >= base_confidence[el]) && base_confidence[el] > 2)
 			{
 #ifdef 	DEBUG_IMAGES
 				testImages[base_map_index].data_ptr[el * 3] = 255;
@@ -972,38 +1008,139 @@ void assignDepthMapOverlay(vector<VerticesWithDepthColorMaps> &vertices_with_map
 	}
 #endif
 }
+*/
 
-void removeEdgePixels(vector<unsigned short> &depth_map, vector<unsigned short> &confidence_map, int w, int h)
+template <class T>
+float getSubpixelValue(vector<T> &map, float x, float y, int w, int h)
 {
-/*	int shift_x[] = { -1, 0 ,  1, -1, 1, -1, 0, 1 };
-	int shift_y[] = { -1, -1, -1,  0, 0,  1, 1, 1 };
-	vector<unsigned short> depth_map_copy = depth_map;
-	int n_pixels = w*h;
-	for (int y = 1; y < h - 1; y++)
-	{
-		for (int x = 1; x < w - 1; x++)
-		{
-			int depth = depth_map[x + y*w];
-			const int depth_thr = (int)(depth / 3.0 * 0.00272 + 7.273);
+	float x0, y0;
+	float x_r, y_r;
+	float val = 0.0;
+	float diff_x, diff_y;
 
-			if (confidence_map[x + y*w] < 2 && depth_map[x + y*w] > 0)
+	if (x<0.0 || y<0.0 || x>(w - 2) || y>(h - 2)) return val;
+
+	x0 = floor(x);
+	y0 = floor(y);
+
+	int pos = (unsigned short)x0 + (unsigned short)y0 * w;
+
+	x_r = x - x0;
+	y_r = y - y0;
+
+	diff_x = 1.0f - x_r;
+	diff_y = 1.0f - y_r;
+
+	val = diff_x*diff_y*map[pos] + x_r*diff_y*map[pos + 1] +
+		diff_x*y_r*map[pos + w] + x_r*y_r*map[pos + w + 1];
+
+	return val;
+}
+
+void assignDepthMapOverlay(vector<VerticesWithDepthColorMaps> &vertices_with_maps,
+	vector<int> &depth_to_vertices_map, vector<vector<unsigned char>> &map_indexes, vector<WorldTranformation> &wt, vector<IntrinsicCameraParameters> &ip, int overlayed_index, int base_map_index, int w, int h)
+{
+	//const int depth_threshold = 20;
+	int depth_threshold;
+
+	vector<unsigned short> &depth_map = vertices_with_maps[base_map_index].depth_map;
+	WorldTranformation base_wt = wt[base_map_index];
+	base_wt.inv();
+
+	vector<vector<float>> totalR = multiply3x3Matrices(wt[overlayed_index].R, base_wt.R);
+
+	vector<unsigned char> &base_confidence = vertices_with_maps[base_map_index].confidence_map;
+	unsigned char overlay_confidence;
+
+	const int confidence_threshold = 10;
+
+	vector<unsigned char> replace_mask(w * h, 0);
+	vector<PointProjection> projections;
+	int n_points_assigned = 0;
+
+	// test code
+#ifdef 	DEBUG_IMAGES
+	//writeDepthImage(overlay_confidence, w, h, "test/confidence_1.pgm");
+	vector<SimpleImage> testImages(vertices_with_maps.size());
+	for (int i = 0; i < vertices_with_maps.size(); i++)
+	{
+		testImages[i].create(w, h, 3, nullptr);
+		for (int el = 0; el < w*h; el++)
+			testImages[i].data_ptr[el * 3 + 1] = (unsigned char)vertices_with_maps[i].depth_map[el];
+	}
+#endif
+
+	for (int el = 0; el < w*h; el++)
+	{
+		unsigned short d = depth_map[el];
+		if (d == 0 || vertices_with_maps[base_map_index].point_assigned[el])
+			continue;
+
+		float out_x, out_y, out_depth; 
+		mapPointToDifferentDepthMapf(el % w, el / w, d, out_x, out_y, out_depth, totalR, base_wt,
+			ip[base_map_index], wt[overlayed_index], ip[overlayed_index]);
+
+		if (out_x < 0 || out_y < 0 || out_x >= (w - 1) || out_y >= (h - 1))
+			continue;
+		
+		//int pos_overlay = (int)(out_x) + (int)(out_y) * w;
+
+		overlay_confidence = (unsigned char)(getSubpixelValue(vertices_with_maps[overlayed_index].confidence_map, out_x,
+			out_y, w, h) + 0.5f);
+		float org_depth_overlay = getSubpixelValue(vertices_with_maps[overlayed_index].depth_map, out_x,
+			out_y, w, h);
+
+		depth_threshold = (int)(depth_map[el] * 0.00272 + 20);
+
+		float diff = abs(org_depth_overlay - out_depth);
+		if (diff < depth_threshold)
+		{
+			if ((overlay_confidence > confidence_threshold
+				|| overlay_confidence >= base_confidence[el]) && base_confidence[el] > 1)
 			{
-				int n = 0;
-				for (int i = 0; i < 8; i++)
-				{
-					int pos = (x + shift_x[i]) + (y + shift_y[i])*w;
-				
-					if (depth_map[pos]!=0 && abs(depth_map[pos] - depth_map[x + y*w]) > depth_thr && 
-						abs(depth_map[pos] - depth_map[x + y*w]) < 3 * depth_thr)
-						n++;
-				}
-				if (n >= 2)
-				  depth_map_copy[x + y*w] = 0;
+#ifdef 	DEBUG_IMAGES
+				testImages[base_map_index].data_ptr[el * 3] = 255;
+				testImages[base_map_index].data_ptr[el * 3 + 1] = 0;
+				testImages[base_map_index].data_ptr[el * 3 + 2] = 0;
+#endif				
+				replace_mask[el] = 255;
 			}
 		}
 	}
 
-	depth_map = depth_map_copy;*/
+#ifdef DEBUG_IMAGES
+	writePGM("test/replace_mask_1.pgm", w, h, replace_mask.data());
+#endif
+
+	morphologyErode(replace_mask, w, h);
+	morphologyErode(replace_mask, w, h);
+	morphologyDilate(replace_mask, w, h);
+	morphologyDilate(replace_mask, w, h);
+	//morphologyDilate(replace_mask, w, h);
+
+#ifdef DEBUG_IMAGES
+	writePGM("test/replace_mask_2.pgm", w, h, replace_mask.data());
+#endif
+
+	for (int i = 0; i<w*h; i++)
+		if (replace_mask[i] != 0)
+		{
+			if (replace_mask[i] == 255)
+			{
+				depth_map[i] = 0;
+				vertices_with_maps[base_map_index].point_assigned[i] = true;
+			}
+			n_points_assigned++;
+		}
+
+#ifdef DEBUG_IMAGES
+	for (int i = 0; i < testImages.size(); i++)
+	{
+		char tmp[1024];
+		sprintf(tmp, "test/outTest%d.png", i);
+		testImages[i].writeToFile(tmp);
+	}
+#endif
 }
 
 float calculateCosAngleBetweenVectors(float X0, float Y0, float Z0,
@@ -1013,10 +1150,10 @@ float calculateCosAngleBetweenVectors(float X0, float Y0, float Z0,
 	float v2[3] = { X2 - X0, Y2 - Y0, Z2 - Z0 };
 	
 	float dot = v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
-	float mag1 = sqrt(v1[0] * v1[0] + v1[1] * v1[1] + v1[2] * v1[2] + 0.000001);
-	float mag2 = sqrt(v2[0] * v2[0] + v2[1] * v2[1] + v2[2] * v2[2] + 0.000001);
+	float mag1 = sqrt(v1[0] * v1[0] + v1[1] * v1[1] + v1[2] * v1[2] + 0.000001f);
+	float mag2 = sqrt(v2[0] * v2[0] + v2[1] * v2[1] + v2[2] * v2[2] + 0.000001f);
 
-	return dot / (mag1 * mag2 + 0.000001);
+	return dot / (mag1 * mag2 + 0.000001f);
 }
 
 
@@ -1029,17 +1166,11 @@ void clearMapConvexHull(vector<VerticesWithDepthColorMaps> &vertices_with_maps, 
 	vector<unsigned short> &depth_map = cleared_depth_map;
 	//vector<unsigned short> depth_map_copy = vertices_with_maps[base_map_index].depth_map;
 	vector<unsigned short> overlay_depth_map = vertices_with_maps[overlayed_index].depth_map;
-	vector<unsigned short> &base_confidence = vertices_with_maps[base_map_index].confidence_map;
+	vector<unsigned char> &base_confidence = vertices_with_maps[base_map_index].confidence_map;
 	vector<unsigned short> overlay_confidence(w*h);
 
 
 	const int confidence_threshold = 10;
-
-	//vector<unsigned short> mapped_depth_map;
-
-	//mapDepthMap(vertices_with_maps[overlayed_index], world_transforms[base_map_index], intrinsic_params[base_map_index],
-	//	world_transforms[overlayed_index], intrinsic_params[overlayed_index],
-	//	mapped_depth_map, w, h, overlay_confidence);
 
 	vector<vector<float>> totalRBaseToOverlay, totalROverlayToBase;
 	WorldTranformation overlay_wt = world_transforms[overlayed_index];
@@ -1054,20 +1185,21 @@ void clearMapConvexHull(vector<VerticesWithDepthColorMaps> &vertices_with_maps, 
 
 	overlay_wt_inv.inv();
 	base_wt_inv.inv();
-	totalRBaseToOverlay = multiply3x3Matrices(overlay_wt_inv.R, base_wt.R);
+	totalRBaseToOverlay = multiply3x3Matrices(overlay_wt.R, base_wt_inv.R);
 
-	totalROverlayToBase = multiply3x3Matrices(base_wt_inv.R, overlay_wt.R);
+	totalROverlayToBase = multiply3x3Matrices(base_wt.R, overlay_wt_inv.R);
 
+#ifdef DEBUG_IMAGES
 	writeDepthImage(overlay_depth_map, w, h, "test/before_dilate.pgm");
-	morphologyDilate(overlay_depth_map, w, h);
+#endif
+//	morphologyDilate(overlay_depth_map, w, h);
+#ifdef DEBUG_IMAGES
 	writeDepthImage(overlay_depth_map, w, h, "test/after_dilate.pgm");
+#endif
 
 	for (int y=0; y<h; y++)
 	for (int x = 0; x<w; x++)
 	{
-		if (x == 283 && y == 201)
-			x = x;
-
 		int el = x + y*w;
 		unsigned short d = depth_map[el];
 		if (d == 0)
@@ -1077,61 +1209,30 @@ void clearMapConvexHull(vector<VerticesWithDepthColorMaps> &vertices_with_maps, 
 		int ov_x, ov_y;
 		unsigned short ov_d;
 		mapPointToDifferentDepthMap(x, y, d, ov_x, ov_y, ov_d,
-			totalRBaseToOverlay, base_wt, base_ip, overlay_wt_inv, overlay_ip);
+			totalRBaseToOverlay, base_wt_inv, base_ip, overlay_wt, overlay_ip);
 
 		if (ov_x < 5 || ov_y < 40 || ov_x >= (w - 5) || ov_y >= (h - 40)|| ov_d == 0)
 			continue;
 		
 		int n = 0;
 		unsigned short ovd_org = overlay_depth_map[ov_x + ov_y * w];
-		if (overlay_depth_map[ov_x + ov_y * w] == 0)
+
+		if (vertices_with_maps[overlayed_index].confidence_map[ov_x + ov_y] < 2)
+			continue; 
+
+		if (ovd_org == 0)
 		{
 			depth_map[el] = 0;
-			//base_confidence[el] = 0;
 			continue;
 		}
-		
-
-		// Find the angle between cameras and point. If > 90 degrees, then cameras are
-		// on the opposite sides of point
-		int depth_to_vert = vertices_with_maps[base_map_index].depth_to_vertices_map[el];
-		Point3f p = vertices_with_maps[base_map_index].vertices[depth_to_vert];
-		float cos_angle = calculateCosAngleBetweenVectors(p.X, p.Y, p.Z,
-			base_wt.t[0], base_wt.t[1], base_wt.t[2]
-			, overlay_wt.t[0], overlay_wt.t[1], overlay_wt.t[2]);
-
 		int depth_to_vert_overlay = vertices_with_maps[overlayed_index].depth_to_vertices_map[ov_x + ov_y * w];
-		if (depth_to_vert_overlay == -1)
-			continue; 
-		int x1, y1, x2, y2;
-		unsigned short d1, d2;
-		pointProjection(p, x1, y1, d1, overlay_wt_inv, overlay_ip);
-		pointProjection(vertices_with_maps[overlayed_index].vertices[depth_to_vert_overlay],
-			x2, y2, d2, overlay_wt_inv, overlay_ip);
 
-		//int xt, yt;
-		//unsigned short dt;
-		//mapPointToDifferentDepthMap(ov_x, ov_y, overlay_depth_map[ov_x + ov_y * w],
-		//	xt, yt, dt, totalROverlayToBase, overlay_wt, overlay_ip, base_wt_inv, base_ip);
-
-		//if (cos_angle > 0) // angle > 90 degrees
+		if (ovd_org > ov_d + 100)
 		{
-			if (d2 > (d1 + 100))
-			{
-				depth_map[el] = 0;
-				//base_confidence[el] = 0;
-				continue;
-			}
+			depth_map[el] = 0;
+			continue;
 		}
-		/*else
-		{
-			if (d1 > (d2 + 100))
-			{
-				depth_map[el] = 0;
-				//base_confidence[el] = 0;
-				continue;
-			}
-		}*/
+
 	}
 }
 
@@ -1139,7 +1240,7 @@ void clearMapConvexHull(vector<VerticesWithDepthColorMaps> &vertices_with_maps, 
 void clearAllMapsConvexHull(vector<VerticesWithDepthColorMaps> &vertices_with_maps, vector<WorldTranformation> &world_transforms, 
 	vector<IntrinsicCameraParameters> &intrinsic_params, int* widths, int *heights)
 {
-	int n_maps = vertices_with_maps.size(); 
+	int n_maps = (int)vertices_with_maps.size(); 
 	vector<vector<unsigned short>> cleared_depth_maps(n_maps); 
 
 	for (int current_map_index = 0; current_map_index < n_maps; current_map_index++)
@@ -1148,8 +1249,7 @@ void clearAllMapsConvexHull(vector<VerticesWithDepthColorMaps> &vertices_with_ma
 		int w = widths[current_map_index];
 		int h = heights[current_map_index];
 		WorldTranformation world_transform = world_transforms[current_map_index];
-		world_transform.inv();
-
+		
 		for (int i = 0; i < n_maps; i++)
 		{
 			if (i == current_map_index)
@@ -1177,9 +1277,9 @@ void mergeVerticesForViews(vector<VerticesWithDepthColorMaps> &vertices_with_map
 		int w = widths[current_map_index];
 		int h = heights[current_map_index];
 		WorldTranformation world_transform = world_transforms[current_map_index];
-		world_transform.inv();
 		projectVerticesIntoDepthMap(vertices_with_maps[current_map_index], world_transform, intrinsic_params[current_map_index], w, h, false);
 	}
+
 #ifdef DEBUG_IMAGES
 	char tmp[1024];
 	for (int current_map_index = 0; current_map_index < n_maps; current_map_index++)
@@ -1198,7 +1298,6 @@ void mergeVerticesForViews(vector<VerticesWithDepthColorMaps> &vertices_with_map
 		int w = widths[current_map_index];
 		int h = heights[current_map_index];
 		WorldTranformation world_transform = world_transforms[current_map_index];
-		world_transform.inv();
 		vector<int> depth_to_vertices_map(w * h);
 
 #ifdef DEBUG_IMAGES
@@ -1309,7 +1408,6 @@ int calculateMapsCoverage(vector<VerticesWithDepthColorMaps> &vertices_with_maps
 
 	vector<unsigned short> &depth_map = vertices_with_maps[index1].depth_map;
 	WorldTranformation wt = world_transforms[index1];
-	wt.inv();
 	IntrinsicCameraParameters ip = intrinsic_params[index1];
 	int w = widths[index1];
 	int h = heights[index1];
@@ -1352,7 +1450,6 @@ ColorCorrectionParams getColorCorrectionTransform(vector<VerticesWithDepthColorM
 
 	vector<unsigned short> &depth_map = vertices_with_maps[index1].depth_map;
 	WorldTranformation wt = world_transforms[index1];
-	wt.inv();
 	IntrinsicCameraParameters ip = intrinsic_params[index1];
 	int w = widths[index1];
 	int h = heights[index1];
@@ -1405,7 +1502,8 @@ ColorCorrectionParams getColorCorrectionTransform(vector<VerticesWithDepthColorM
 	return transform;
 }
 
-void updateColorCorrectionCoefficients(vector<VerticesWithDepthColorMaps> &vertices_with_maps, int *widths, int *heights, vector<WorldTranformation> &world_transforms,
+void updateColorCorrectionCoefficients(vector<VerticesWithDepthColorMaps> &vertices_with_maps, 
+	int *widths, int *heights, vector<WorldTranformation> &world_transforms,
 	vector<IntrinsicCameraParameters> &intrinsic_params, vector<ColorCorrectionParams> &coeffs)
 {
 	coeffs.clear();
@@ -1485,7 +1583,7 @@ void applyColorCorrection(vector<VerticesWithDepthColorMaps> &vertices_with_maps
 	for (size_t i = 0; i < n_tranforms; i++)
 	{
 		int target_map_index = color_correction_coeffs[i].map_index;
-		vector<unsigned char> &colors = vertices_with_maps[target_map_index].colors;
+		vector<unsigned char> &colors = vertices_with_maps[i].colors;
 
 		applyColorCorrection(colors, color_correction_coeffs[i]);
 	}
@@ -1578,6 +1676,7 @@ extern "C" DEPTH_PROCESSING_API void __stdcall generateVerticesFromDepthMap(unsi
 
 	intrinsic_params = IntrinsicCameraParameters(intr_params + depth_map_index * 7);
 	world_transform = WorldTranformation(wtransform_params + depth_map_index*(9 + 3));
+	world_transform.inv();
 
 	for (int i = 0; i < depth_map_index; i++)
 	{
@@ -1592,6 +1691,86 @@ extern "C" DEPTH_PROCESSING_API void __stdcall generateVerticesFromDepthMap(unsi
 	formMesh(out_mesh, vertices_with_maps, triangle_indexes);
 }
 
+void reprojectionCorrection(vector<VerticesWithDepthColorMaps> &vertices_with_maps, 
+	vector<VerticesWithDepthColorMaps> &original_vertices_with_maps, int *heights, int *widths,
+	vector<vector<TriangleIndexes>> &triangle_indexes, vector<WorldTranformation> &wt, vector<IntrinsicCameraParameters> &ip)
+{
+	int n_maps = (int)vertices_with_maps.size(); 
+	vector<unsigned short> confidences(n_maps);
+	vector<unsigned short> depths(n_maps);
+	vector<unsigned char> colors(n_maps * 3);
+	vector<int> map_indexes(n_maps);
+	vector<WorldTranformation> wt_inv = wt;
+	int n_matches; 
+	int w = widths[0];
+	int h = heights[0];
+
+	for (int map_index = 0; map_index < n_maps; map_index++)
+		wt_inv[map_index].inv();
+
+	for (int map_index = 0; map_index < n_maps; map_index++)
+	{
+		size_t n_vertices = vertices_with_maps[map_index].vertices.size(); 
+
+		for (int v = 0; v < n_vertices; v++)
+		{
+			Point3f &p = vertices_with_maps[map_index].vertices[v];
+			unsigned char *c = vertices_with_maps[map_index].colors.data() + v * 3;
+
+			n_matches = 0;
+			for (int i = 0; i < n_maps; i++)
+			{
+				int x, y;
+				unsigned short d;
+				pointProjection(p, x, y, d, wt[i], ip[i]);
+				if (d == 0 || x < 0 || y < 0 || x >= w || y >= h)
+					continue; 
+
+				unsigned short org_depth = vertices_with_maps[i].depth_map[(x + y * w)];
+	
+				if (abs(d - org_depth) > 20)
+					continue; 
+
+				depths[n_matches] = org_depth;
+				colors[n_matches * 3] = vertices_with_maps[i].colors_map[(x + y * w) * 3];
+				colors[n_matches * 3 + 1] = vertices_with_maps[i].colors_map[(x + y * w) * 3 + 1];
+				colors[n_matches * 3 + 2] = vertices_with_maps[i].colors_map[(x + y * w) * 3 + 2];
+				confidences[n_matches] = vertices_with_maps[i].confidence_map[x + y * w];
+				map_indexes[n_matches] = i;
+				n_matches++;
+
+			}
+
+
+			if (n_matches > 0)
+			{
+				int best_index = -1;
+				int sum_depth = 0; 
+				int n_chosen = 0;
+				unsigned short best_confidence = 0;
+				for (int i = 0; i < n_matches; i++)
+				{
+					if (confidences[i] > best_confidence)
+					{
+						best_confidence = confidences[i];
+						best_index = 0;
+						n_chosen++;
+					}
+				}
+
+				if (best_index != -1)
+				{
+
+					c[0] = colors[best_index * 3];
+					c[1] = colors[best_index * 3 + 1];
+					c[2] = colors[best_index * 3 + 2];
+				}
+			}
+		}
+	}
+}
+
+
 int generateTriangles(vector<VerticesWithDepthColorMaps> &vertices_with_maps, int *heights, int *widths,
 	vector<vector<TriangleIndexes>> &triangle_indexes)
 {
@@ -1599,7 +1778,6 @@ int generateTriangles(vector<VerticesWithDepthColorMaps> &vertices_with_maps, in
 	vector<std::thread> generate_triangles_threads;
 	int depth_pos = 0;
 	int n_triangles = 0; 
-
 
 	for (int i = 0; i < n_maps; i++)
 	{
@@ -1626,7 +1804,7 @@ void performICP(vector<VerticesWithDepthColorMaps> &vertices_with_maps, vector<W
 	vector<vector<float>> Rs(vertices_with_maps.size(), vector<float>(9, 0.0f));
 	vector<vector<float>> ts(vertices_with_maps.size(), vector<float>(3, 0.0f));
 
-	for(int i=0; i<vertices_with_maps.size(); i++)
+	for (int i = 0; i<vertices_with_maps.size(); i++)
 		for (int j = 0; j < 3; j++)
 		{
 			Rs[i][j * 3 + j] = 1;
@@ -1648,8 +1826,8 @@ void performICP(vector<VerticesWithDepthColorMaps> &vertices_with_maps, vector<W
 			}
 
 			ICP(points_rest.data(),
-				vertices_with_maps[i].vertices.data(), 
-				points_rest.size(), vertices_with_maps[i].vertices.size(), 
+				vertices_with_maps[i].vertices.data(),
+				(int)points_rest.size(), (int)vertices_with_maps[i].vertices.size(),
 				Rs[i].data(), ts[i].data());
 		}
 	}
@@ -1663,9 +1841,9 @@ void performICP(vector<VerticesWithDepthColorMaps> &vertices_with_maps, vector<W
 		for (int j = 0; j < 3; j++)
 		{
 			for (int k = 0; k < 3; k++)
-				tempT[j] += ts[i][k] * world_transforms[i].R[k][j];
-			
-			world_transforms[i].t[j] += tempT[j];
+				tempT[j] += ts[i][k] * world_transforms[i].R[j][k];
+
+			world_transforms[i].t[j] -= tempT[j];
 		}
 
 		for (int j = 0; j < 3; j++)
@@ -1673,12 +1851,89 @@ void performICP(vector<VerticesWithDepthColorMaps> &vertices_with_maps, vector<W
 			{
 				for (int l = 0; l < 3; l++)
 				{
-					tempR[j][k] += Rs[i][l * 3 + j] * world_transforms[i].R[l][k];
+					tempR[j][k] += Rs[i][l * 3 + j] * world_transforms[i].R[k][l];
 				}
-				world_transforms[i].R[j][k] = tempR[j][k];
+				world_transforms[i].R[k][j] = tempR[j][k];
 			}
 	}
 }
+
+
+inline bool edgePixel(int x, int y, int w, int h, unsigned short *data)
+{
+	const int n_shifts = 8;
+	const int shifts[] = { -w - 1, -w, -w + 1, 1, w + 1, w, w - 1, -1 };
+	int pos = x + y * w;
+
+	if (data[pos] == 0)
+		return false; 
+
+	for (int i = 0; i < n_shifts; i++)
+		if (data[pos + shifts[i]] == 0)
+			return true;
+
+	return false; 
+}
+
+void identifyMapsConnectedEdges(vector<VerticesWithDepthColorMaps> &vertices_with_maps, int *heights, int *widths, vector<WorldTranformation> &world_transforms,
+	vector<IntrinsicCameraParameters> &intrinsic_params)
+{
+	int n_maps = (int)vertices_with_maps.size(); 
+	vector<vector<unsigned char>> edges(n_maps);
+	const int n_shifts = 8;
+	int n_edges = 0;
+
+	for (int cur_map = 0; cur_map < n_maps; cur_map++)
+	{
+		int w = widths[cur_map];
+		int h = heights[cur_map];
+		unsigned short *depth_map = vertices_with_maps[cur_map].depth_map.data();
+		vector<unsigned char> current_edges(w * h, 0);
+
+		const int shifts[] = { -w - 1, -w, -w + 1, 1, w + 1, w, w - 1, -1 };
+
+		for (int y=1; y<h-1; y++)
+			for (int x = 1; x < w-1; x++)
+			{
+				if (edgePixel(x, y, w, h, depth_map))
+				{
+					current_edges[x + y * w] = 255;
+					continue;
+				}
+			}
+		edges[cur_map] = current_edges;
+
+#ifdef DEBUG_IMAGES
+		char tmp[1024]; 
+		sprintf(tmp, "test/edges_%d.pgm", cur_map);
+		writePGM(tmp, w, h, current_edges.data());
+		sprintf(tmp, "test/edges_dm_%d.pgm", cur_map);
+		writeDepthImage(vertices_with_maps[cur_map].depth_map, w, h, tmp);
+#endif
+	}
+
+	for (int first_map = 0; first_map < n_maps; first_map++)
+	{
+		unsigned short *first_depth_map = vertices_with_maps[first_map].depth_map.data();
+		unsigned char *first_edge_map = edges[first_map].data(); 
+		int w = widths[first_map];
+		int h = heights[first_map];
+
+		for (int sec_map = 0; sec_map < n_maps; sec_map++)
+		{
+			for (int y=0; y < h; y++)
+				for (int x = 0; x < w; x++)
+				{
+					if (first_edge_map[x + y*w] != 255)
+						continue;
+
+				}
+		}
+	}
+
+
+}
+
 
 
 DEPTH_PROCESSING_API void __stdcall generateMeshFromDepthMaps(int n_maps, unsigned char* depth_maps,
@@ -1686,6 +1941,7 @@ DEPTH_PROCESSING_API void __stdcall generateMeshFromDepthMaps(int n_maps, unsign
 	float minX, float minY, float minZ, float maxX, float maxY, float maxZ, bool bgenerate_triangles)
 {
 	int depth_pos = 0, colors_pos = 0;;
+
 
 #ifdef STORE_FRAMES_INFORMATION
 	// for testing purposes only
@@ -1714,13 +1970,25 @@ DEPTH_PROCESSING_API void __stdcall generateMeshFromDepthMaps(int n_maps, unsign
 		"d:/Projekty/LiveScan3D/dane/frames_info_frames_info_gitara_bez filtra_jeden_k.bin.bin", // 17
 	};
 
-	loadAllFramesInformation(filenames[14], n_maps, &depth_maps, &depth_colors, &widths, &heights, &intr_params, &wtransform_params);
+	loadAllFramesInformation(filenames[2], n_maps, &depth_maps, &depth_colors, &widths, &heights, &intr_params, &wtransform_params);
 
+#endif
+	//memset(depth_maps + widths[0] * heights[0] * 2, 0, 4 * widths[0] * heights[0]);
+
+
+#ifdef SHOW_TIMINGS
+	SimpleTimer timer;
 #endif
 
 #ifdef FILTER_FLYING_PIXELS
+
 	for (int i=0; i<n_maps; i++)
 		filterFlyingPixels(1, 20, 4, widths[0], heights[0], (unsigned short*)(depth_maps + i * widths[0] * heights[0] * 2));
+
+#ifdef SHOW_TIMINGS
+	timer.printLapTimeAndRestart("Flying pixels: ");
+#endif
+
 #endif
 
 	vector<VerticesWithDepthColorMaps> vertices_with_maps(n_maps);
@@ -1733,11 +2001,8 @@ DEPTH_PROCESSING_API void __stdcall generateMeshFromDepthMaps(int n_maps, unsign
 	{
 		intrinsic_params[i] = IntrinsicCameraParameters(intr_params + i * 7);
 		world_transforms[i] = WorldTranformation(wtransform_params + i*(9 + 3));
+		world_transforms[i].inv();
 	}
-
-#ifdef SHOW_TIMINGS
-	SimpleTimer timer;
-#endif
 
 	// DELETE ME!!!
 	//for (int i = 0; i < n_maps; i++)
@@ -1762,11 +2027,15 @@ DEPTH_PROCESSING_API void __stdcall generateMeshFromDepthMaps(int n_maps, unsign
 	generateVerticesFromDepthMaps(depth_maps, depth_colors, widths, heights, world_transforms, intrinsic_params, vertices_with_maps,
 		minX, minY, minZ, maxX, maxY, maxZ);
 
+#ifdef SHOW_TIMINGS
+	timer.printLapTimeAndRestart("Generating vertices: ");
+#endif
 
 
 #ifdef PERFORM_ICP
 	printf("Performing ICP\n");
-	performICP(vertices_with_maps, world_transforms, 5);
+	
+	performICP(vertices_with_maps, world_transforms, 3);
 	FILE *f = fopen("wt.txt", "wt");
 #endif
 	for (int current_map_index = 0; current_map_index < n_maps; current_map_index++)
@@ -1782,9 +2051,11 @@ DEPTH_PROCESSING_API void __stdcall generateMeshFromDepthMaps(int n_maps, unsign
 		for (int i = 0; i < 3; i++)
 			fprintf(f, "%f ", world_transform.t[i]);
 #endif
-		world_transform.inv();
 		projectVerticesIntoDepthMap(vertices_with_maps[current_map_index], world_transform, intrinsic_params[current_map_index], w, h, false);
 	}
+
+	vector<VerticesWithDepthColorMaps> original_vertices_with_maps = vertices_with_maps;
+
 #ifdef PERFORM_ICP
 	fclose(f);
 
@@ -1793,6 +2064,11 @@ DEPTH_PROCESSING_API void __stdcall generateMeshFromDepthMaps(int n_maps, unsign
 
 #endif
 
+#ifdef LOAD_REFINED_ICP
+//	generateVerticesFromDepthMaps(depth_maps, depth_colors, widths, heights, world_transforms, intrinsic_params, vertices_with_maps,
+//		minX, minY, minZ, maxX, maxY, maxZ);
+
+#endif
 
 #ifdef DEBUG_IMAGES
 	char tmp[1024];
@@ -1803,14 +2079,35 @@ DEPTH_PROCESSING_API void __stdcall generateMeshFromDepthMaps(int n_maps, unsign
 	}
 #endif
 
+#ifdef SHOW_TIMINGS
+	timer.start();
+#endif
+
+	if (bcolor_transfer || bgenerate_triangles)
+	{
+		generateVerticesConfidence(vertices_with_maps, widths, heights);
+	}
+#ifdef SHOW_TIMINGS
+	timer.printLapTimeAndRestart("generateVerticesConfidence");
+#endif
+
 #ifdef CONVEX_HULL
 	clearAllMapsConvexHull(vertices_with_maps, world_transforms, intrinsic_params, widths, heights);
 	for (int i = 0; i < vertices_with_maps.size(); i++)
 		memcpy(depth_maps + i * widths[0] * heights[0] * 2, vertices_with_maps[i].depth_map.data(), widths[0] * heights[0] * 2);
 #endif
+#ifdef SHOW_TIMINGS
+	timer.printLapTimeAndRestart("Convex hull: ");
+#endif
 
 	generateVerticesFromDepthMaps(depth_maps, depth_colors, widths, heights, world_transforms, intrinsic_params, vertices_with_maps,
 		minX, minY, minZ, maxX, maxY, maxZ);
+
+
+#ifdef SHOW_TIMINGS
+	timer.printLapTimeAndRestart("generateVerticesFromDepthMaps");
+#endif
+
 
 #ifdef DEBUG_IMAGES
 	for (int current_map_index = 0; current_map_index < n_maps; current_map_index++)
@@ -1821,25 +2118,20 @@ DEPTH_PROCESSING_API void __stdcall generateMeshFromDepthMaps(int n_maps, unsign
 #endif
 
 
-#ifdef SHOW_TIMINGS
-	timer.printLapTimeAndRestart("generateVerticesFromDepthMaps");
-#endif
-
-	if (bcolor_transfer || bgenerate_triangles)
-	{
-		generateVerticesConfidence(vertices_with_maps, widths, heights);	
-	}
-#ifdef SHOW_TIMINGS
-	timer.printLapTimeAndRestart("generateVerticesConfidence");
-#endif
-
-
-
 	if (bcolor_transfer)
 	{
 		updateColorCorrectionCoefficients(vertices_with_maps, widths, heights, world_transforms, intrinsic_params, color_correction_coeffs);
-		applyColorCorrection(vertices_with_maps, color_correction_coeffs);
+		for (size_t i = 0; i < color_correction_coeffs.size(); i++)
+		{
+			int target_map = color_correction_coeffs[i].map_index;
+			applyColorCorrection(vertices_with_maps[target_map].colors, color_correction_coeffs[i]);
+			applyColorCorrection(vertices_with_maps[target_map].colors_map, color_correction_coeffs[i]);
+			applyColorCorrection(original_vertices_with_maps[target_map].colors, color_correction_coeffs[i]);
+			applyColorCorrection(original_vertices_with_maps[target_map].colors_map, color_correction_coeffs[i]);
+
+		}
 	}
+
 #ifdef SHOW_TIMINGS
 	timer.printLapTimeAndRestart("Color correction");
 #endif
@@ -1863,8 +2155,13 @@ DEPTH_PROCESSING_API void __stdcall generateMeshFromDepthMaps(int n_maps, unsign
 		}
 
 #endif
+		identifyMapsConnectedEdges(vertices_with_maps, heights, widths);
+
 		generateTriangles(vertices_with_maps, heights, widths, triangle_indexes);
 	}
+
+	reprojectionCorrection(vertices_with_maps, original_vertices_with_maps, heights, widths, triangle_indexes, world_transforms, intrinsic_params);
+
 #ifdef SHOW_TIMINGS
 	timer.printLapTimeAndRestart("generateTrianglesGradients");
 #endif

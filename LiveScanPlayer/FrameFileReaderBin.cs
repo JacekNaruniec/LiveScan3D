@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.IO;
+using KinectServer;
 
 namespace LiveScanPlayer
 {
@@ -36,8 +37,9 @@ namespace LiveScanPlayer
             }
         }
 
-        public void ReadFrame(List<float> vertices, List<byte> colors)
+        public void ReadFrame(List<VertexC4ubV3f> vertices, List<int> triangles)
         {
+            /*
             if (binaryReader.BaseStream.Position == binaryReader.BaseStream.Length)
                 Rewind();
 
@@ -79,7 +81,7 @@ namespace LiveScanPlayer
             }
 
             binaryReader.ReadByte();
-
+            */
             currentFrameIdx++;
         }
 
@@ -88,9 +90,9 @@ namespace LiveScanPlayer
             Rewind();
             for (int i = 0; i < frameIdx; i++)
             {
-                List<float> vertices = new List<float>();
+            /*    List<float> vertices = new List<float>();
                 List<byte> colors = new List<byte>();
-                ReadFrame(vertices, colors);
+                ReadFrame(vertices, colors);*/
             }
         }
 

@@ -323,6 +323,9 @@
     <ClCompile Include="..\src\NativeUtils\simplegraphic.cpp" />
     <ClCompile Include="..\src\NativeUtils\simpleimage.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="cudepthprocessing.cu" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

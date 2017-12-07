@@ -18,10 +18,13 @@ namespace LiveScanPlayer
         BindingList<IFrameFileReader> lFrameFiles = new BindingList<IFrameFileReader>();
         bool bPlayerRunning = false;
 
-        List<float> lAllVertices = new List<float>();
-        List<byte> lAllColors = new List<byte>();
+        List<VertexC4ubV3f> lVertices = new List<VertexC4ubV3f>();
+        List<int> lTriangles = new List<int>();
 
-        TransferServer oTransferServer = new TransferServer();
+        object verticesLock = new object();
+        OpenGLWindow openGLWindow = null;
+
+        //TransferServer oTransferServer = new TransferServer();
 
         AutoResetEvent eUpdateWorkerFinished = new AutoResetEvent(false);
 
@@ -29,8 +32,8 @@ namespace LiveScanPlayer
         {
             InitializeComponent();
            
-            oTransferServer.lVertices = lAllVertices;
-            oTransferServer.lColors = lAllColors;
+            //oTransferServer.lVertices = lAllVertices;
+            //oTransferServer.lColors = lAllColors;
 
             lFrameFilesListView.Columns.Add("Current frame", 75);
             lFrameFilesListView.Columns.Add("Filename", 300);
@@ -39,7 +42,7 @@ namespace LiveScanPlayer
         private void PlayerWindowForm_FormClosing(object sender, FormClosingEventArgs e)
         {
             bPlayerRunning = false;
-            oTransferServer.StopServer();
+            //oTransferServer.StopServer();
         }
 
         private void btSelect_Click(object sender, EventArgs e)
@@ -85,13 +88,13 @@ namespace LiveScanPlayer
 
             if (bPlayerRunning)
             {            
-                oTransferServer.StartServer();
+                //oTransferServer.StartServer();
                 updateWorker.RunWorkerAsync();
                 btStart.Text = "Stop player";
             }
             else
             {
-                oTransferServer.StopServer();
+                //oTransferServer.StopServer();
                 btStart.Text = "Start player";
                 eUpdateWorkerFinished.WaitOne();
             }
@@ -138,32 +141,36 @@ namespace LiveScanPlayer
             {
                 Thread.Sleep(50);
 
-                List<float> tempAllVertices = new List<float>();
-                List<byte> tempAllColors = new List<byte>();
+                List<VertexC4ubV3f> tempAllVertices = new List<VertexC4ubV3f>();
+                List<int> tempAllTriangles = new List<int>();
 
                 lock (lFrameFiles)
                 {
                     for (int i = 0; i < lFrameFiles.Count; i++)
                     {
-                        List<float> vertices = new List<float>();
-                        List<byte> colors = new List<byte>();
-                        lFrameFiles[i].ReadFrame(vertices, colors);
+                        List<VertexC4ubV3f> vertices = new List<VertexC4ubV3f>();
+                        List<int> triangles = new List<int>();
 
-                        tempAllVertices.AddRange(vertices);                        
-                        tempAllColors.AddRange(colors);
+                        lFrameFiles[i].ReadFrame(vertices, triangles);
+
+                        tempAllVertices.AddRange(vertices);
+                        tempAllTriangles.AddRange(triangles);
                     }
                 }
 
                 Thread frameIdxUpdate = new Thread(() => this.Invoke((MethodInvoker)delegate { this.UpdateDisplayedFrameIndices(); }));
                 frameIdxUpdate.Start();
 
-                lock (lAllVertices)
+                lock (verticesLock)
                 {
-                    lAllVertices.Clear();
-                    lAllColors.Clear();
-                    lAllVertices.AddRange(tempAllVertices);
-                    lAllColors.AddRange(tempAllColors);
+                    lVertices.Clear();
+                    lTriangles.Clear();
+                    lVertices.AddRange(tempAllVertices);
+                    lTriangles.AddRange(tempAllTriangles);
                 }
+
+                if (openGLWindow!=null)
+                    openGLWindow.SetNewVerticesAndTriangles(lVertices.ToArray(), lTriangles.ToArray());
 
                 if (chSaveFrames.Checked)
                     SaveCurrentFrameToFile(outDir, curFrameIdx);
@@ -177,10 +184,10 @@ namespace LiveScanPlayer
 
         private void OpenGLWorker_DoWork(object sender, DoWorkEventArgs e)
         {
-            OpenGLWindow openGLWindow = new OpenGLWindow();
-
+            openGLWindow = new OpenGLWindow();
+            openGLWindow.verticesLock = verticesLock;
             // TODO: fix!
-            //openGLWindow.vertices = lAllVertices;
+            openGLWindow.SetNewVerticesAndTriangles(lVertices.ToArray(), lTriangles.ToArray());
             openGLWindow.Run();
         }
 
@@ -221,6 +228,7 @@ namespace LiveScanPlayer
 
         private void SaveCurrentFrameToFile(string outDir, int frameIdx)
         {
+            /*
             List<float> lVertices = new List<float>();
             List<byte> lColors = new List<byte>();
 
@@ -230,7 +238,7 @@ namespace LiveScanPlayer
                 lColors.AddRange(lAllColors);
             }
             string outputFilename = outDir + frameIdx.ToString().PadLeft(5, '0') + ".ply";
-            Utils.saveToPly(outputFilename, lVertices, lColors, true);
+            Utils.saveToPly(outputFilename, lVertices, lColors, true);*/
         }
     }
 }

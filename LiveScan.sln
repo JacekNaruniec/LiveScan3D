@@ -44,8 +44,10 @@ Global
 		{973EE923-B423-4BCD-AA08-B03DA40CB51F}.Release|x64.Build.0 = Release DLL|x64
 		{E52AB19C-F67D-4932-90BD-CC549C1FEC8B}.Debug NativeUtils as exe|x64.ActiveCfg = Debug|Any CPU
 		{E52AB19C-F67D-4932-90BD-CC549C1FEC8B}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{E52AB19C-F67D-4932-90BD-CC549C1FEC8B}.Debug|x64.Build.0 = Debug|Any CPU
 		{E52AB19C-F67D-4932-90BD-CC549C1FEC8B}.Release NativeUtils as exe|x64.ActiveCfg = Release|Any CPU
 		{E52AB19C-F67D-4932-90BD-CC549C1FEC8B}.Release|x64.ActiveCfg = Release|Any CPU
+		{E52AB19C-F67D-4932-90BD-CC549C1FEC8B}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

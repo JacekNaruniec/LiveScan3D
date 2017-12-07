@@ -19,6 +19,9 @@
     <Filter Include="Header Files\additional_utils">
       <UniqueIdentifier>{307c73a4-fb91-4c34-9647-eb8fbd4d0afa}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\cuda">
+      <UniqueIdentifier>{36e86ca8-3790-4e5a-9bb3-5c83bfe2640d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\nanoflann.h">
@@ -83,5 +86,10 @@
     <ClCompile Include="..\src\NativeUtils\simpleimage.cpp">
       <Filter>Source Files\additional_utils</Filter>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="cudepthprocessing.cu">
+      <Filter>Source Files\cuda</Filter>
+    </None>
   </ItemGroup>
 </Project>

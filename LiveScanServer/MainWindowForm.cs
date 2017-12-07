@@ -302,8 +302,7 @@ namespace KinectServer
         
         //Performs the ICP based pose refinement.
         private void refineWorker_DoWork(object sender, DoWorkEventArgs e)
-        {           
-                    
+        {                               
             if (oServer.bAllCalibrated == false)
             {
                 SetStatusBarOnTimer("Not all of the devices are calibrated.", 5000);
