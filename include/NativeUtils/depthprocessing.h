@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <vector>
+#include "meshGenerator.h"
 
 #include "icp.h"
 
@@ -35,25 +36,32 @@ struct VertexC4ubV3f
 struct PointProjection
 {
 	int x, y;
-	unsigned short d; 
-	int index; 
+	unsigned short d;
+	int index;
 };
 
 struct Mesh
 {
 	int nVertices;
 	VertexC4ubV3f *vertices;
-	int nTriangles; 
+	int nTriangles;
 	int *triangles;
 };
 
-struct WorldTranformation
+struct Connection
+{
+	int point1_index; 
+	int point2_index; 
+	unsigned short depth1, depth2; 
+};
+
+struct WorldTransformation
 {
 	std::vector<float> t;
 	std::vector<std::vector<float>> R;
-	WorldTranformation() {}
+	WorldTransformation() {}
 
-	WorldTranformation(float *p)
+	WorldTransformation(float *p)
 	{
 		t.resize(3);
 		memcpy(t.data(), p, 3 * sizeof(float));
@@ -71,7 +79,7 @@ struct WorldTranformation
 			for (int j = 0; j < 3; j++)
 				Rt[i][j] = R[j][i];
 		}
-		R = Rt; 
+		R = Rt;
 	}
 };
 
@@ -94,11 +102,14 @@ struct IntrinsicCameraParameters
 	float r2, r4, r6;    // camera radial distortion parameters (second, fourth and sixth order)
 	IntrinsicCameraParameters() {}
 	IntrinsicCameraParameters(float *p) :
-		cx(p[0]), cy(p[1]), fx(p[2]), fy(p[3]), r2(p[4]), r4(p[5]), r6(p[6])   {}
+		cx(p[0]), cy(p[1]), fx(p[2]), fy(p[3]), r2(p[4]), r4(p[5]), r6(p[6]) {}
 };
 
 void RotatePoint(Point3f &point, std::vector<std::vector<float>> &R);
 void writeDepthImage(std::vector<unsigned short> &depth_image, int w, int h, std::string filename);
+std::vector<TriangleIndexes> generateTrianglesForStiches(std::vector<VerticesWithDepthColorMaps> &vertices_with_maps, int *heights, int *widths, std::vector<WorldTransformation> &world_transforms,
+	std::vector<IntrinsicCameraParameters> &intrinsic_params);
+
 
 extern "C" DEPTH_PROCESSING_API void __stdcall generateVerticesFromDepthMap(unsigned char* depth_maps,
 	unsigned char *depth_colors, int *widths, int *heights, float *intr_params, float *wtransform_params, Mesh *out_mesh,

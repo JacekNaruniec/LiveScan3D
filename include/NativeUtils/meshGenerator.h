@@ -5,7 +5,15 @@
 struct TriangleIndexes
 {
 	int ind[3];
+	int map_ind[3];
+	TriangleIndexes(int i1, int i2, int i3, int map_ind_1 = -1, int map_ind_2 = -1, int map_ind_3 = -1):
+		ind{ i1, i2, i3 }, map_ind{ map_ind_1, map_ind_2, map_ind_3 } 
+		{ }
+	TriangleIndexes() : ind{ -1, -1, -1 }, map_ind { -1, -1, -1 }
+	{}
 };
+
+
 
 #ifndef UINT16
 typedef unsigned short      UINT16, *PUINT16;
