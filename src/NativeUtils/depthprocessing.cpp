@@ -15,9 +15,9 @@
 // defines for testing only
 //#define STORE_FRAMES_INFORMATION
 #define LOAD_FRAMES_INFORMATION
-//#define DEBUG_IMAGES
+#define DEBUG_IMAGES
 #define SHOW_TIMINGS
-#define PERFORM_ICP
+//#define PERFORM_ICP
 //#define LOAD_REFINED_ICP
 #define FILTER_FLYING_PIXELS
 #define CONVEX_HULL
@@ -1596,7 +1596,7 @@ void formMesh(Mesh *out_mesh, vector<VerticesWithDepthColorMaps> &vertices_with_
 	size_t n_total_vertices = 0;
 	size_t n_total_triangles = 0;
 
-	vector<int> vertices_shift(n_maps); 
+	vector<size_t> vertices_shift(n_maps); 
 
 	for (int i = 0; i<n_maps; i++)
 	{
@@ -1677,9 +1677,9 @@ void formMesh(Mesh *out_mesh, vector<VerticesWithDepthColorMaps> &vertices_with_
 		if (inds[0] == -1 || inds[1] == -1 || inds[2] == -1)
 			continue;
 
-		inds[0] += vertices_shift[maps[0]];
-		inds[1] += vertices_shift[maps[1]];
-		inds[2] += vertices_shift[maps[2]];
+		inds[0] += (int)vertices_shift[maps[0]];
+		inds[1] += (int)vertices_shift[maps[1]];
+		inds[2] += (int)vertices_shift[maps[2]];
 
 		float dist = 0.5;
 		if (abs(out_mesh->vertices[inds[0]].X - out_mesh->vertices[inds[1]].X) > dist ||
@@ -2220,7 +2220,7 @@ DEPTH_PROCESSING_API void __stdcall generateMeshFromDepthMaps(int n_maps, unsign
 		"d:/Projekty/LiveScan3D/dane/frames_info_frames_info_gitara_bez filtra_jeden_k.bin.bin", // 17
 	};
 
-	loadAllFramesInformation(filenames[6], n_maps, &depth_maps, &depth_colors, &widths, &heights, &intr_params, &wtransform_params);
+	loadAllFramesInformation(filenames[0], n_maps, &depth_maps, &depth_colors, &widths, &heights, &intr_params, &wtransform_params);
 
 #endif
 	//memset(depth_maps + widths[0] * heights[0] * 2, 0, 4 * widths[0] * heights[0]);
