@@ -118,6 +118,6 @@ extern "C" DEPTH_PROCESSING_API void __stdcall generateVerticesFromDepthMap(unsi
 
 extern "C" DEPTH_PROCESSING_API void __stdcall generateMeshFromDepthMaps(int n_maps, unsigned char* depth_maps,
 	unsigned char *depth_colors, int *widths, int *heights, float *intr_params, float *wtransform_params, Mesh *out_mesh, bool bcolor_transfer,
-	float minX, float minY, float minZ, float maxX, float maxY, float maxZ, bool bgenerate_triangles);
+	float minX, float minY, float minZ, float maxX, float maxY, float maxZ, bool bgenerate_triangles, std::string test_filename = "");
 extern "C" DEPTH_PROCESSING_API void __stdcall depthMapAndColorSetRadialCorrection(int n_maps, unsigned char* depth_maps, unsigned char *depth_colors, int *widths, int *heights, float *intr_params);
 extern "C" DEPTH_PROCESSING_API void __stdcall deleteMesh(Mesh*);

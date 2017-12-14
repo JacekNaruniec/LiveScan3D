@@ -165,14 +165,40 @@ int main()
 	SimpleTimer timer; 
 
 	timer.start();
-	for (int i = 0; i < 1; i++)
+	string filenames[] = { "d:/Projekty/LiveScan3D/dane/gitara1.bin",   // 0
+		"d:/Projekty/LiveScan3D/dane/gitara2.bin",						// 1
+		"d:/Projekty/LiveScan3D/dane/gitara3.bin",						// 2
+		"d:/Projekty/LiveScan3D/dane/gitara_tlo.bin",					// 3
+		"d:/Projekty/LiveScan3D/dane/gitara_marek.bin",					// 4
+		"d:/Projekty/LiveScan3D/dane/gitara_marek2.bin",				// 5
+		"d:/Projekty/LiveScan3D/dane/gitara_marek3.bin",				// 6
+		"d:/Projekty/LiveScan3D/dane/pokoj1.bin",						// 7
+		"d:/Projekty/LiveScan3D/dane/pokoj2.bin",						// 8
+		"d:/Projekty/LiveScan3D/dane/marekpokoj.bin",					// 9
+		"d:/Projekty/LiveScan3D/dane/marekpokoj2.bin",					// 10
+		"d:/Projekty/LiveScan3D/dane/marek_gitara3.bin",				// 11
+		"d:/Projekty/LiveScan3D/dane/frames_info_3_na_gorze.bin",		// 12
+		"d:/Projekty/LiveScan3D/dane/frames_info_face.bin",				// 13
+		"d:/Projekty/LiveScan3D/dane/frames_info_znacznik_3_bez_filtra.bin", // 14
+		"d:/Projekty/LiveScan3D/dane/frames_info_gitara_3_bez_filtra_dobre!.bin", // 15
+		"d:/Projekty/LiveScan3D/dane/frames_info_gitara_3_kinecty_ez_filtra.bin", // 16
+		"d:/Projekty/LiveScan3D/dane/frames_info_gitara_bez filtra_jeden_k.bin", // 17
+	};
+	for (int i = 0; i < 18; i++)
 	{
-		//generateMeshFromDepthMaps(1, depth_maps, depth_colors,
+		printf("%s\n", filenames[i].c_str()); 
+		//generateMeshFromDepthMaps(3, depth_maps, depth_colors,
 		//	widths, heights, intr_params, wtransform_params, &mesh, true, -1.0f, -1.0f,
-		//	-0.5f, 1.0f, 1.0f, 1.0f, true);
+		//	-0.5f, 1.0f, 1.0f, 1.0f, true, filenames[i]);
 		generateMeshFromDepthMaps(1, depth_maps, depth_colors,
 			widths, heights, intr_params, wtransform_params, &mesh, true, -500.0f, -500.0f,
-			-500.0f, 500.0f, 500.0f, 500.0f, true);
+			-500.0f, 500.0f, 500.0f, 500.0f, true, filenames[i]);
+
+		char tmp[1024];
+		sprintf(tmp, "%s.ply", filenames[i].c_str());
+		printf("\nSaving mesh to PLY file\n");
+		savePLY(tmp, mesh);
+		printf("PLY saved\n");
 	}
 	timer.stop();
 	int ms = (int)timer.getMilliseconds();
@@ -189,10 +215,6 @@ int main()
 	printf("\n Created %d triangles", mesh.nTriangles);
 
 	printf("\nProcessing took %d [ms] ", ms);
-
-	printf("\nSaving mesh to PLY file\n");
-	savePLY("mesh.ply", mesh);
-	printf("PLY saved\n");
 
 	getchar();
 	return 0;

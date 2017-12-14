@@ -15,8 +15,8 @@
 // defines for testing only
 //#define STORE_FRAMES_INFORMATION
 #define LOAD_FRAMES_INFORMATION
-#define DEBUG_IMAGES
-#define SHOW_TIMINGS
+//#define DEBUG_IMAGES
+//#define SHOW_TIMINGS
 //#define PERFORM_ICP
 //#define LOAD_REFINED_ICP
 #define FILTER_FLYING_PIXELS
@@ -1286,6 +1286,11 @@ void mergeVerticesForViews(vector<VerticesWithDepthColorMaps> &vertices_with_map
 	{
 		sprintf(tmp, "test/depth_%d_1.pgm", current_map_index);
 		writeDepthImage(vertices_with_maps[current_map_index].depth_map, widths[current_map_index], heights[current_map_index], tmp);
+		SimpleImage color_image;
+		color_image.create(widths[current_map_index], heights[current_map_index], 3, vertices_with_maps[current_map_index].colors_map.data());
+		sprintf(tmp, "test/color_%d_1.png", current_map_index);
+		color_image.writeToFile(tmp);
+		
 	}
 #endif
 
@@ -1725,6 +1730,15 @@ extern "C" DEPTH_PROCESSING_API void __stdcall generateVerticesFromDepthMap(unsi
 	formMesh(out_mesh, vertices_with_maps, triangle_indexes);
 }
 
+bool pointClose(float X1, float Y1, float Z1, float X2, float Y2, float Z2, float thr = 0.001)
+{
+	float dist = abs(X1 - X2) + abs(Y1 - Y2) + abs(Z1 - Z2);
+	if (dist < thr)
+		return true;
+	else
+		return false;
+}
+
 void reprojectionCorrection(vector<VerticesWithDepthColorMaps> &vertices_with_maps,
 	vector<VerticesWithDepthColorMaps> &original_vertices_with_maps, int *heights, int *widths,
 	vector<vector<TriangleIndexes>> &triangle_indexes, vector<WorldTransformation> &wt, vector<IntrinsicCameraParameters> &ip)
@@ -1749,6 +1763,7 @@ void reprojectionCorrection(vector<VerticesWithDepthColorMaps> &vertices_with_ma
 		for (int v = 0; v < n_vertices; v++)
 		{
 			Point3f &p = vertices_with_maps[map_index].vertices[v];
+			
 			unsigned char *c = vertices_with_maps[map_index].colors.data() + v * 3;
 
 			n_matches = 0;
@@ -1760,7 +1775,7 @@ void reprojectionCorrection(vector<VerticesWithDepthColorMaps> &vertices_with_ma
 				if (d == 0 || x < 0 || y < 0 || x >= w || y >= h)
 					continue;
 
-				unsigned short org_depth = vertices_with_maps[i].depth_map[(x + y * w)];
+				unsigned short org_depth = original_vertices_with_maps[i].depth_map[(x + y * w)];
 
 				if (abs(d - org_depth) > 20)
 					continue;
@@ -1787,7 +1802,7 @@ void reprojectionCorrection(vector<VerticesWithDepthColorMaps> &vertices_with_ma
 					if (confidences[i] > best_confidence)
 					{
 						best_confidence = confidences[i];
-						best_index = 0;
+						best_index = i;
 						n_chosen++;
 					}
 				}
@@ -2188,7 +2203,7 @@ vector<TriangleIndexes> generateTrianglesForStiches(vector<VerticesWithDepthColo
 
 DEPTH_PROCESSING_API void __stdcall generateMeshFromDepthMaps(int n_maps, unsigned char* depth_maps,
 	unsigned char *depth_colors, int *widths, int *heights, float *intr_params, float *wtransform_params, Mesh *out_mesh, bool bcolor_transfer,
-	float minX, float minY, float minZ, float maxX, float maxY, float maxZ, bool bgenerate_triangles)
+	float minX, float minY, float minZ, float maxX, float maxY, float maxZ, bool bgenerate_triangles, string test_filename)
 {
 	int depth_pos = 0, colors_pos = 0;;
 
@@ -2200,27 +2215,9 @@ DEPTH_PROCESSING_API void __stdcall generateMeshFromDepthMaps(int n_maps, unsign
 
 #ifdef LOAD_FRAMES_INFORMATION
 	// for testing purposes only 
-	string filenames[] = { "d:/Projekty/LiveScan3D/dane/gitara1.bin",   // 0
-		"d:/Projekty/LiveScan3D/dane/gitara2.bin",						// 1
-		"d:/Projekty/LiveScan3D/dane/gitara3.bin",						// 2
-		"d:/Projekty/LiveScan3D/dane/gitara_tlo.bin",					// 3
-		"d:/Projekty/LiveScan3D/dane/gitara_marek.bin",					// 4
-		"d:/Projekty/LiveScan3D/dane/gitara_marek2.bin",				// 5
-		"d:/Projekty/LiveScan3D/dane/gitara_marek3.bin",				// 6
-		"d:/Projekty/LiveScan3D/dane/pokoj1.bin",						// 7
-		"d:/Projekty/LiveScan3D/dane/pokoj2.bin",						// 8
-		"d:/Projekty/LiveScan3D/dane/marekpokoj.bin",					// 9
-		"d:/Projekty/LiveScan3D/dane/marekpokoj2.bin",					// 10
-		"d:/Projekty/LiveScan3D/dane/marek_gitara3.bin",				// 11
-		"d:/Projekty/LiveScan3D/dane/frames_info_3_na_gorze.bin",		// 12
-		"d:/Projekty/LiveScan3D/dane/frames_info_face.bin",				// 13
-		"d:/Projekty/LiveScan3D/dane/frames_info_znacznik_3_bez_filtra.bin", // 14
-		"d:/Projekty/LiveScan3D/dane/frames_info_gitara_3_bez_filtra_dobre!.bin", // 15
-		"d:/Projekty/LiveScan3D/dane/frames_info_gitara_3_kinecty_ez_filtra.bin", // 16
-		"d:/Projekty/LiveScan3D/dane/frames_info_frames_info_gitara_bez filtra_jeden_k.bin.bin", // 17
-	};
 
-	loadAllFramesInformation(filenames[0], n_maps, &depth_maps, &depth_colors, &widths, &heights, &intr_params, &wtransform_params);
+	if (test_filename != "")
+		loadAllFramesInformation(test_filename, n_maps, &depth_maps, &depth_colors, &widths, &heights, &intr_params, &wtransform_params);
 
 #endif
 	//memset(depth_maps + widths[0] * heights[0] * 2, 0, 4 * widths[0] * heights[0]);
@@ -2256,7 +2253,7 @@ DEPTH_PROCESSING_API void __stdcall generateMeshFromDepthMaps(int n_maps, unsign
 
 	// DELETE ME!!!
 	//for (int i = 0; i < n_maps; i++)
-	//	if (i != 0)
+	//	if (i != 2)
 	//		memset(depth_maps + i * widths[0] * heights[0] * 2, 0, widths[0] * heights[0] * 2);
 	// 0----------------0
 
@@ -2417,6 +2414,17 @@ DEPTH_PROCESSING_API void __stdcall generateMeshFromDepthMaps(int n_maps, unsign
 	formMesh(out_mesh, vertices_with_maps, triangle_indexes);
 #ifdef SHOW_TIMINGS
 	timer.printLapTimeAndRestart("formMesh");
+#endif
+
+
+#ifdef LOAD_FRAMES_INFORMATION
+	delete[]depth_colors;
+	delete[]depth_maps;
+	delete[]widths;
+	delete[]heights;
+	delete[]intr_params;
+	delete[]wtransform_params;
+	// cleanup
 #endif
 }
 
