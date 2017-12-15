@@ -15,9 +15,9 @@
 // defines for testing only
 //#define STORE_FRAMES_INFORMATION
 #define LOAD_FRAMES_INFORMATION
-//#define DEBUG_IMAGES
+#define DEBUG_IMAGES
 //#define SHOW_TIMINGS
-//#define PERFORM_ICP
+#define PERFORM_ICP
 //#define LOAD_REFINED_ICP
 #define FILTER_FLYING_PIXELS
 #define CONVEX_HULL
@@ -1096,7 +1096,7 @@ void assignDepthMapOverlay(vector<VerticesWithDepthColorMaps> &vertices_with_map
 		if (diff < depth_threshold)
 		{
 			if ((overlay_confidence > confidence_threshold
-				|| overlay_confidence >= base_confidence[el]) && base_confidence[el] > 2)
+				|| overlay_confidence >= base_confidence[el]) && base_confidence[el] > 0)
 			{
 #ifdef 	DEBUG_IMAGES
 				testImages[base_map_index].data_ptr[el * 3] = 255;
@@ -1186,7 +1186,6 @@ void clearMapConvexHull(vector<VerticesWithDepthColorMaps> &vertices_with_maps, 
 	overlay_wt_inv.inv();
 	base_wt_inv.inv();
 	totalRBaseToOverlay = multiply3x3Matrices(overlay_wt.R, base_wt_inv.R);
-
 	totalROverlayToBase = multiply3x3Matrices(base_wt.R, overlay_wt_inv.R);
 
 #ifdef DEBUG_IMAGES
@@ -1195,7 +1194,11 @@ void clearMapConvexHull(vector<VerticesWithDepthColorMaps> &vertices_with_maps, 
 	//	morphologyDilate(overlay_depth_map, w, h);
 #ifdef DEBUG_IMAGES
 	writeDepthImage(overlay_depth_map, w, h, "test/after_dilate.pgm");
+	SimpleImage test, test2;
+	test.create(w, h, 3, nullptr);
+	test2.create(w, h, 3, nullptr);
 #endif
+
 
 	for (int y = 0; y<h; y++)
 		for (int x = 0; x<w; x++)
@@ -1217,23 +1220,34 @@ void clearMapConvexHull(vector<VerticesWithDepthColorMaps> &vertices_with_maps, 
 			int n = 0;
 			unsigned short ovd_org = overlay_depth_map[ov_x + ov_y * w];
 
-			if (vertices_with_maps[overlayed_index].confidence_map[ov_x + ov_y] < 2)
+			if (vertices_with_maps[overlayed_index].confidence_map[ov_x + w * ov_y] < 5)
 				continue;
 
-			if (ovd_org == 0)
+			/*if (ovd_org == 0)
 			{
 				depth_map[el] = 0;
+				continue;
+			}*/
+			//int depth_to_vert_overlay = vertices_with_maps[overlayed_index].depth_to_vertices_map[ov_x + ov_y * w];
+			unsigned short depth_threshold = (int)(ovd_org * 0.00272 + 20);
+
+			if (ovd_org > ov_d + depth_threshold)
+			{
+				depth_map[el] = 0;
+				test.data_ptr[3 * (x +y *w)] = (unsigned char)ovd_org;
+				test2.data_ptr[3 * (x + y *w)] = (unsigned char)ov_d;
 				continue;
 			}
-			int depth_to_vert_overlay = vertices_with_maps[overlayed_index].depth_to_vertices_map[ov_x + ov_y * w];
-
-			if (ovd_org > ov_d + 100)
+			else
 			{
-				depth_map[el] = 0;
-				continue;
+				test.data_ptr[3 * (x + y *w) + 1] = (unsigned char)ovd_org;
+				test2.data_ptr[3 * (x + y *w) + 1] = (unsigned char)ov_d;
 			}
 
 		}
+
+	test.writeToFile("test/test_ch1.png");
+	test2.writeToFile("test/test_ch2.png");
 }
 
 
@@ -1603,8 +1617,12 @@ void formMesh(Mesh *out_mesh, vector<VerticesWithDepthColorMaps> &vertices_with_
 
 	vector<size_t> vertices_shift(n_maps); 
 
+	//int checked_map = 2;
+
 	for (int i = 0; i<n_maps; i++)
 	{
+		//if (i != checked_map) continue; 
+
 		n_total_triangles += triangle_indexes[i].size();
 		n_total_vertices += vertices_with_maps[i].vertices.size();
 	}
@@ -1617,12 +1635,29 @@ void formMesh(Mesh *out_mesh, vector<VerticesWithDepthColorMaps> &vertices_with_
 	size_t vertices_so_far = 0;
 	for (int i = 0; i < n_maps; i++)
 	{
+		//if (i != checked_map) continue;
+
 		for (int j = 0; j < vertices_with_maps[i].vertices.size(); j++)
 		{
+			
 			out_mesh->vertices[j + vertices_so_far].R = vertices_with_maps[i].colors[j * 3];
 			out_mesh->vertices[j + vertices_so_far].G = vertices_with_maps[i].colors[j * 3 + 1];
 			out_mesh->vertices[j + vertices_so_far].B = vertices_with_maps[i].colors[j * 3 + 2];
+
+			unsigned char R = 0, G = 0, B = 0; 
+			
+			if (i == 0)
+			{	R = 255, G = 0, B = 0;	}
+			else if (i==1)
+			{   R = 0, G = 255, B = 0;	}
+			else if (i == 2)
+			{	R = 0, G = 0, B = 255;	}
+
+			//out_mesh->vertices[j + vertices_so_far].R = R;
+			//out_mesh->vertices[j + vertices_so_far].G = G;
+			//out_mesh->vertices[j + vertices_so_far].B = B;
 			out_mesh->vertices[j + vertices_so_far].A = 255;
+			
 			out_mesh->vertices[j + vertices_so_far].X = vertices_with_maps[i].vertices[j].X;
 			out_mesh->vertices[j + vertices_so_far].Y = vertices_with_maps[i].vertices[j].Y;
 			out_mesh->vertices[j + vertices_so_far].Z = vertices_with_maps[i].vertices[j].Z;
@@ -1637,6 +1672,8 @@ void formMesh(Mesh *out_mesh, vector<VerticesWithDepthColorMaps> &vertices_with_
 	int act_vertices = 0;
 	for (int i = 0; i < n_maps; i++)
 	{
+		//if (i != checked_map) continue;
+
 		for (int j = 0; j < triangle_indexes[i].size(); j++)
 		{
 			int inds[3];
@@ -1661,7 +1698,7 @@ void formMesh(Mesh *out_mesh, vector<VerticesWithDepthColorMaps> &vertices_with_
 		}
 		act_vertices += (int)vertices_with_maps[i].vertices.size();
 	}
-
+	
 	// stiches
 	for (int j = 0; j < triangle_indexes[n_maps].size(); j++)
 	{
@@ -1696,7 +1733,7 @@ void formMesh(Mesh *out_mesh, vector<VerticesWithDepthColorMaps> &vertices_with_
 		memcpy(out_mesh->triangles + act_triangle * 3, inds, 3 * sizeof(int));
 		act_triangle++;
 	}
-
+	
 	out_mesh->nTriangles = act_triangle;
 
 }
@@ -1745,7 +1782,7 @@ void reprojectionCorrection(vector<VerticesWithDepthColorMaps> &vertices_with_ma
 {
 	int n_maps = (int)vertices_with_maps.size();
 	vector<unsigned short> confidences(n_maps);
-	vector<unsigned short> depths(n_maps);
+	vector<size_t> depths_inds(n_maps);
 	vector<unsigned char> colors(n_maps * 3);
 	vector<int> map_indexes(n_maps);
 	vector<WorldTransformation> wt_inv = wt;
@@ -1762,6 +1799,9 @@ void reprojectionCorrection(vector<VerticesWithDepthColorMaps> &vertices_with_ma
 
 		for (int v = 0; v < n_vertices; v++)
 		{
+
+			//if (map_index == 1 && v == 21396)
+			//	v = v;
 			Point3f &p = vertices_with_maps[map_index].vertices[v];
 			
 			unsigned char *c = vertices_with_maps[map_index].colors.data() + v * 3;
@@ -1780,10 +1820,10 @@ void reprojectionCorrection(vector<VerticesWithDepthColorMaps> &vertices_with_ma
 				if (abs(d - org_depth) > 20)
 					continue;
 
-				depths[n_matches] = org_depth;
-				colors[n_matches * 3] = vertices_with_maps[i].colors_map[(x + y * w) * 3];
-				colors[n_matches * 3 + 1] = vertices_with_maps[i].colors_map[(x + y * w) * 3 + 1];
-				colors[n_matches * 3 + 2] = vertices_with_maps[i].colors_map[(x + y * w) * 3 + 2];
+				depths_inds[n_matches] = x + y * widths[i];
+				colors[n_matches * 3] = original_vertices_with_maps[i].colors_map[(x + y * w) * 3];
+				colors[n_matches * 3 + 1] = original_vertices_with_maps[i].colors_map[(x + y * w) * 3 + 1];
+				colors[n_matches * 3 + 2] = original_vertices_with_maps[i].colors_map[(x + y * w) * 3 + 2];
 				confidences[n_matches] = vertices_with_maps[i].confidence_map[x + y * w];
 				map_indexes[n_matches] = i;
 				n_matches++;
@@ -1813,6 +1853,11 @@ void reprojectionCorrection(vector<VerticesWithDepthColorMaps> &vertices_with_ma
 					c[0] = colors[best_index * 3];
 					c[1] = colors[best_index * 3 + 1];
 					c[2] = colors[best_index * 3 + 2];
+					size_t best_map = map_indexes[best_index];
+
+					int best_v_ind = original_vertices_with_maps[best_map].depth_to_vertices_map[depths_inds[best_index]];
+					p = original_vertices_with_maps[best_map].vertices[best_v_ind];
+					
 				}
 			}
 		}
@@ -2251,12 +2296,6 @@ DEPTH_PROCESSING_API void __stdcall generateMeshFromDepthMaps(int n_maps, unsign
 		world_transforms[i].inv();
 	}
 
-	// DELETE ME!!!
-	//for (int i = 0; i < n_maps; i++)
-	//	if (i != 2)
-	//		memset(depth_maps + i * widths[0] * heights[0] * 2, 0, widths[0] * heights[0] * 2);
-	// 0----------------0
-
 #ifdef LOAD_REFINED_ICP
 	FILE *f2 = fopen("wt.txt", "rt");
 	for (int current_map_index = 0; current_map_index < n_maps; current_map_index++)
@@ -2282,9 +2321,29 @@ DEPTH_PROCESSING_API void __stdcall generateMeshFromDepthMaps(int n_maps, unsign
 #ifdef PERFORM_ICP
 	printf("Performing ICP\n");
 
-	performICP(vertices_with_maps, world_transforms, 3);
+	if (n_maps > 1) 
+		performICP(vertices_with_maps, world_transforms, 3);
+
+	// DELETE ME!!!
+	//for (int i = 0; i < n_maps; i++)
+	//	if (i != 2)
+	//		memset(depth_maps + i * widths[0] * heights[0] * 2, 0, widths[0] * heights[0] * 2);
+	//0----------------0
+
+
+	//generateVerticesFromDepthMaps(depth_maps, depth_colors, widths, heights, world_transforms, intrinsic_params, vertices_with_maps,
+	//	minX, minY, minZ, maxX, maxY, maxZ);
+
 	FILE *f = fopen("wt.txt", "wt");
 #endif
+	// DELETE ME!!!
+	/*for (int i = 0; i < n_maps; i++)
+		if (i != 2)
+			memset(depth_maps + i * widths[0] * heights[0] * 2, 0, widths[0] * heights[0] * 2);
+	generateVerticesFromDepthMaps(depth_maps, depth_colors, widths, heights, world_transforms, intrinsic_params, vertices_with_maps,
+		minX, minY, minZ, maxX, maxY, maxZ);*/
+	//0----------------0
+
 	for (int current_map_index = 0; current_map_index < n_maps; current_map_index++)
 	{
 		int w = widths[current_map_index];
@@ -2321,7 +2380,7 @@ DEPTH_PROCESSING_API void __stdcall generateMeshFromDepthMaps(int n_maps, unsign
 	char tmp[1024];
 	for (int current_map_index = 0; current_map_index < n_maps; current_map_index++)
 	{
-		sprintf(tmp, "test/depth_xxx_before_convex_hulls_%d_1.pgm", current_map_index);
+		sprintf(tmp, "test/depthx_%d_1_before_convex_hulls.pgm", current_map_index);
 		writeDepthImage(vertices_with_maps[current_map_index].depth_map, widths[current_map_index], heights[current_map_index], tmp);
 	}
 #endif
@@ -2359,7 +2418,7 @@ DEPTH_PROCESSING_API void __stdcall generateMeshFromDepthMaps(int n_maps, unsign
 #ifdef DEBUG_IMAGES
 	for (int current_map_index = 0; current_map_index < n_maps; current_map_index++)
 	{
-		sprintf(tmp, "test/depth_xxx_after_convex_hulls_%d_1.pgm", current_map_index);
+		sprintf(tmp, "test/depthx_%d_1_after_convex_hulls.pgm", current_map_index);
 		writeDepthImage(vertices_with_maps[current_map_index].depth_map, widths[current_map_index], heights[current_map_index], tmp);
 	}
 #endif

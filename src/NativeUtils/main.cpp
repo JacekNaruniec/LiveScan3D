@@ -187,12 +187,12 @@ int main()
 	for (int i = 0; i < 18; i++)
 	{
 		printf("%s\n", filenames[i].c_str()); 
-		//generateMeshFromDepthMaps(3, depth_maps, depth_colors,
-		//	widths, heights, intr_params, wtransform_params, &mesh, true, -1.0f, -1.0f,
-		//	-0.5f, 1.0f, 1.0f, 1.0f, true, filenames[i]);
-		generateMeshFromDepthMaps(1, depth_maps, depth_colors,
-			widths, heights, intr_params, wtransform_params, &mesh, true, -500.0f, -500.0f,
-			-500.0f, 500.0f, 500.0f, 500.0f, true, filenames[i]);
+		generateMeshFromDepthMaps(3, depth_maps, depth_colors,
+			widths, heights, intr_params, wtransform_params, &mesh, true, -1.0f, -1.0f,
+			-0.5f, 1.0f, 1.0f, 1.0f, true, filenames[i]);
+		//generateMeshFromDepthMaps(1, depth_maps, depth_colors,
+		//	widths, heights, intr_params, wtransform_params, &mesh, true, -500.0f, -500.0f,
+		//	-500.0f, 500.0f, 500.0f, 500.0f, true, filenames[i]);
 
 		char tmp[1024];
 		sprintf(tmp, "%s.ply", filenames[i].c_str());
