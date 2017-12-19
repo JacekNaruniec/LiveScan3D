@@ -27,11 +27,7 @@
 //        year={2015},
 //    }
 
-struct VertexC4ubV3f
-{
-	unsigned char R, G, B, A;
-	float X, Y, Z;
-};
+
 
 struct PointProjection
 {
@@ -40,47 +36,13 @@ struct PointProjection
 	int index;
 };
 
-struct Mesh
-{
-	int nVertices;
-	VertexC4ubV3f *vertices;
-	int nTriangles;
-	int *triangles;
-};
+
 
 struct Connection
 {
 	int point1_index; 
 	int point2_index; 
 	unsigned short depth1, depth2; 
-};
-
-struct WorldTransformation
-{
-	std::vector<float> t;
-	std::vector<std::vector<float>> R;
-	WorldTransformation() {}
-
-	WorldTransformation(float *p)
-	{
-		t.resize(3);
-		memcpy(t.data(), p, 3 * sizeof(float));
-		R = std::vector<std::vector<float>>(3, std::vector<float>(3));
-		for (int i = 0; i < 3; i++)
-			memcpy(R[i].data(), p + 3 + 3 * i, 3 * sizeof(float));
-	}
-
-	void inv()
-	{
-		std::vector<std::vector<float>> Rt(3, std::vector<float>(3));
-		for (int i = 0; i < 3; i++)
-		{
-			t[i] = -t[i];
-			for (int j = 0; j < 3; j++)
-				Rt[i][j] = R[j][i];
-		}
-		R = Rt;
-	}
 };
 
 struct VerticesWithDepthColorMaps
@@ -95,15 +57,6 @@ struct VerticesWithDepthColorMaps
 	std::vector<unsigned char> colors_map;
 };
 
-struct IntrinsicCameraParameters
-{
-	float cx, cy;        // principal points
-	float fx, fy;        // focal lengths
-	float r2, r4, r6;    // camera radial distortion parameters (second, fourth and sixth order)
-	IntrinsicCameraParameters() {}
-	IntrinsicCameraParameters(float *p) :
-		cx(p[0]), cy(p[1]), fx(p[2]), fy(p[3]), r2(p[4]), r4(p[5]), r6(p[6]) {}
-};
 
 void RotatePoint(Point3f &point, std::vector<std::vector<float>> &R);
 void writeDepthImage(std::vector<unsigned short> &depth_image, int w, int h, std::string filename);

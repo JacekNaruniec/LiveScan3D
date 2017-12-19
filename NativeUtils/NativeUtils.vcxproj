@@ -300,10 +300,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\include\NativeUtils\cameraparameters.h" />
     <ClInclude Include="..\include\NativeUtils\colorcorrection.h" />
     <ClInclude Include="..\include\NativeUtils\depthprocessing.h" />
     <ClInclude Include="..\include\NativeUtils\fileutils.h" />
     <ClInclude Include="..\include\NativeUtils\icp.h" />
+    <ClInclude Include="..\include\NativeUtils\mesh.h" />
     <ClInclude Include="..\include\NativeUtils\meshGenerator.h" />
     <ClInclude Include="..\include\NativeUtils\pgm.h" />
     <ClInclude Include="..\include\nanoflann.h" />

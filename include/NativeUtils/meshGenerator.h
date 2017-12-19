@@ -1,6 +1,8 @@
 #pragma once
 
 #include <vector>
+#include "mesh.h"
+#include "cameraparameters.h"
 
 struct TriangleIndexes
 {
@@ -13,27 +15,21 @@ struct TriangleIndexes
 	{}
 };
 
-
-
-#ifndef UINT16
-typedef unsigned short      UINT16, *PUINT16;
-#endif
-
 class MeshGenerator
 {
 public:
 	MeshGenerator();
 
-	static void generateTrianglesGradients(UINT16 *depth_image, std::vector<TriangleIndexes> &indexes, int ndepth_frame_width, int ndepth_frame_height);
-	//static void generateTrianglesGradients(UINT16 *depth_image, std::vector<int> &depth_to_vertices_map,
-	//	std::vector<TriangleIndexes> &indexes, int ndepth_frame_width, int ndepth_frame_height);
-	static int getNTrianglesPassingConditions(UINT16 *initialPos, int w);
-
+	static void generateTrianglesGradients(unsigned short *depth_image, std::vector<TriangleIndexes> &indexes, int ndepth_frame_width, int ndepth_frame_height);
+	static int getNTrianglesPassingConditions(unsigned short  *initialPos, int w);
+	
+	void setBounds(float minX, float maxX, float minY, float maxY, float minZ, float maxZ);
+	void generateMeshFromDepthMaps(int n_maps, unsigned char* depth_maps, unsigned char *depth_colors, int *widths, int *heights,
+		float *intr_params, float *wtransform_params, Mesh *out_mesh);
 private:
-	static bool checkTriangleConstraints(UINT16 *depth_ptr1, UINT16 *depth_ptr2, UINT16 *depth_ptr3);
-	static void generateTrianglesGradientsRegion(UINT16 *depth_image, std::vector<TriangleIndexes> &indexes, int ndepth_frame_width, int ndepth_frame_height,
+	static bool checkTriangleConstraints(unsigned short  *depth_ptr1, unsigned short  *depth_ptr2, unsigned short  *depth_ptr3);
+	static void generateTrianglesGradientsRegion(unsigned short  *depth_image, std::vector<TriangleIndexes> &indexes, int ndepth_frame_width, int ndepth_frame_height,
 		int minX, int minY, int maxX, int maxY);
-	//static void generateTrianglesGradientsRegion(UINT16 *depth_image, std::vector<int> &depth_to_vertices_map, std::vector<TriangleIndexes> &indexes, int ndepth_frame_width, int ndepth_frame_height,
-	//	int minX, int minY, int maxX, int maxY);
 
+	std::vector<float> bounds; 
 };

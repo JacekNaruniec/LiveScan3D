@@ -8,13 +8,13 @@ using namespace std;
 
 MeshGenerator::MeshGenerator()
 {
-
+	bounds = { -100.0f, 100.0f, -100.0f, 100.0f, -100.0f, 100.0f };
 }
 
-bool MeshGenerator::checkTriangleConstraints(UINT16 *depth_ptr1, UINT16 *depth_ptr2, UINT16 *depth_ptr3)
+bool MeshGenerator::checkTriangleConstraints(unsigned short *depth_ptr1, unsigned short *depth_ptr2, unsigned short *depth_ptr3)
 {
-	UINT16 vals[3] = { *depth_ptr1, *depth_ptr2, *depth_ptr3 };
-	UINT16 *ptrs[3] = { depth_ptr1, depth_ptr2, depth_ptr3 };
+	unsigned short vals[3] = { *depth_ptr1, *depth_ptr2, *depth_ptr3 };
+	unsigned short *ptrs[3] = { depth_ptr1, depth_ptr2, depth_ptr3 };
 
 	const int pairs_1[] = { 0, 1, 2 };
 	const int pairs_2[] = { 1, 2, 0 };
@@ -61,8 +61,7 @@ bool MeshGenerator::checkTriangleConstraints(UINT16 *depth_ptr1, UINT16 *depth_p
 	return true;
 }
 
-
-int MeshGenerator::getNTrianglesPassingConditions(UINT16 *initialPos, int w)
+int MeshGenerator::getNTrianglesPassingConditions(unsigned short *initialPos, int w)
 {
 	const int pixel_shifts[] = { -1, -w - 1, -w };
 	int n = 0;
@@ -75,73 +74,7 @@ int MeshGenerator::getNTrianglesPassingConditions(UINT16 *initialPos, int w)
 }
 
 // Function made for parallelization of generateTrianglesGradients
-/*void MeshGenerator::generateTrianglesGradientsRegion(UINT16 *depth_image, vector<int> &depth_to_vertices_map, vector<TriangleIndexes> &indexes, int ndepth_frame_width, int ndepth_frame_height,
-	int minX, int minY, int maxX, int maxY)
-{
-	int n_depth_pixels = (maxX - minX) * (maxY - minY);
-	indexes.resize(n_depth_pixels * 2);
-	int w = ndepth_frame_width;
-	int h = ndepth_frame_height;
-	minX = std::max(minX, 1);
-	minY = std::max(minY, 2);
-	maxX = std::min(maxX, ndepth_frame_width - 2);
-	maxY = std::min(maxY, ndepth_frame_height - 2);
-
-	int n_triangles = 0;
-
-	const int pixel_shifts[] = { -w, -w + 1, 1 };
-	const int n_pixel_shifts = 4;
-
-	const int triangles_shifts[] = { pixel_shifts[2], pixel_shifts[0], 0,
-		pixel_shifts[2], pixel_shifts[1], pixel_shifts[0],
-		0,				  pixel_shifts[1], pixel_shifts[0],
-		0,				  pixel_shifts[2] , pixel_shifts[1] };
-
-	for (int y = minY; y < maxY; y++)
-	{
-		UINT16 *depth_row = depth_image + y * ndepth_frame_width;
-		int *map_row = depth_to_vertices_map.data() + y * ndepth_frame_width;
-
-		for (int x = minX; x < maxX; x++)
-		{
-			if (map_row[x] == -1)
-				continue;
-
-			bool tr[4] = { false, false, false, false };
-			tr[0] = checkTriangleConstraints(depth_row + x, depth_row + x + pixel_shifts[0], depth_row + x + pixel_shifts[2]);
-			tr[1] = checkTriangleConstraints(depth_row + x + pixel_shifts[2], depth_row + x + pixel_shifts[0], depth_row + x + pixel_shifts[1]);
-
-			if (!tr[0] && !tr[1])
-			{
-				tr[2] = checkTriangleConstraints(depth_row + x, depth_row + x + pixel_shifts[0], depth_row + x + pixel_shifts[1]);
-				tr[3] = checkTriangleConstraints(depth_row + x, depth_row + x + pixel_shifts[1], depth_row + x + pixel_shifts[2]);
-			}
-
-			for (int i = 0; i<4; i++)
-				if (tr[i])
-				{
-					int map1 = map_row[x + triangles_shifts[i * 3]];
-					int map2 = map_row[x + triangles_shifts[i * 3 + 1]];
-					int map3 = map_row[x + triangles_shifts[i * 3 + 2]];
-
-					if (map1 == -1 || map2 == -1 || map3 == -1)
-						continue;
-
-					indexes[n_triangles].ind[0] = map1;
-					indexes[n_triangles].ind[1] = map2;
-					indexes[n_triangles].ind[2] = map3;
-					n_triangles++;
-				}
-
-		}
-	}
-
-	indexes.resize(n_triangles);
-}*/
-
-
-// Function made for parallelization of generateTrianglesGradients
-void MeshGenerator::generateTrianglesGradientsRegion(UINT16 *depth_image, vector<TriangleIndexes> &indexes, int ndepth_frame_width, int ndepth_frame_height,
+void MeshGenerator::generateTrianglesGradientsRegion(unsigned short *depth_image, vector<TriangleIndexes> &indexes, int ndepth_frame_width, int ndepth_frame_height,
 	int minX, int minY, int maxX, int maxY)
 {
 	int n_depth_pixels = (maxX - minX) * (maxY - minY);
@@ -166,7 +99,7 @@ void MeshGenerator::generateTrianglesGradientsRegion(UINT16 *depth_image, vector
 		
 	for (int y = minY; y < maxY; y++)
 	{
-		UINT16 *depth_row = depth_image + y * ndepth_frame_width;
+		unsigned short *depth_row = depth_image + y * ndepth_frame_width;
 		int pos_y = y * ndepth_frame_width;
 
 		for (int x = minX; x < maxX; x++)
@@ -207,7 +140,7 @@ void MeshGenerator::generateTrianglesGradientsRegion(UINT16 *depth_image, vector
 }
 
 
-void MeshGenerator::generateTrianglesGradients(UINT16 *depth_image, vector<TriangleIndexes> &indexes, int ndepth_frame_width, int ndepth_frame_height)
+void MeshGenerator::generateTrianglesGradients(unsigned short *depth_image, vector<TriangleIndexes> &indexes, int ndepth_frame_width, int ndepth_frame_height)
 {
 		int n_threads = 4;
 		vector<vector<TriangleIndexes>> partial_indexes(8);
@@ -243,41 +176,18 @@ void MeshGenerator::generateTrianglesGradients(UINT16 *depth_image, vector<Trian
 		}
 }
 
-
-/*
-void MeshGenerator::generateTrianglesGradients(UINT16 *depth_image, vector<int> &depth_to_vertices_map, vector<TriangleIndexes> &indexes, int ndepth_frame_width, int ndepth_frame_height)
+void MeshGenerator::setBounds(float minX, float maxX, float minY, float maxY, float minZ, float maxZ)
 {
-	int n_threads = 4;
-	vector<vector<TriangleIndexes>> partial_indexes(8);
-	vector<thread> threads;
+	bounds = { minX, maxX, minY, maxY, minZ, maxZ };
+}
 
-	int pos_y = 0;
-	int step = ndepth_frame_height / n_threads + 1;
-	for (int i = 0; i < n_threads; i++)
+void MeshGenerator::generateMeshFromDepthMaps(int n_maps, unsigned char* depth_maps, unsigned char *depth_colors, int *widths, int *heights,
+	float *intr_params, float *extr_params, Mesh *out_mesh)
+{
+	for (int i = 0; i < n_maps; i++)
 	{
-		int size_y = min(step, ndepth_frame_height - pos_y);
-
-		threads.push_back(thread(generateTrianglesGradientsRegion, depth_image, std::ref(depth_to_vertices_map), std::ref(partial_indexes[i]),
-			ndepth_frame_width, ndepth_frame_height, 0, pos_y, ndepth_frame_width, pos_y + size_y));
-		pos_y += size_y;
-	}
-
-	size_t n_indexes = 0;
-	for (int i = 0; i < n_threads; i++)
-	{
-		threads[i].join();
-		n_indexes += partial_indexes[i].size();
-	}
-
-	indexes.resize(n_indexes);
-	size_t pos = 0;
-	for (int i = 0; i < n_threads; i++)
-	{
-		if (partial_indexes[i].size() == 0)
-			continue;
-
-		memcpy(indexes.data() + pos, partial_indexes[i].data(), partial_indexes[i].size() * sizeof(partial_indexes[i][0]));
-		pos += partial_indexes[i].size();
+		intrinsic_params[i] = IntrinsicCameraParameters(intr_params + i * 7);
+		world_transforms[i] = WorldTransformation(wtransform_params + i*(9 + 3));
+		world_transforms[i].inv();
 	}
 }
-*/

@@ -57,6 +57,12 @@
     <ClInclude Include="..\include\NativeUtils\simplepoint.h">
       <Filter>Source Files\additional_utils</Filter>
     </ClInclude>
+    <ClInclude Include="..\include\NativeUtils\mesh.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\NativeUtils\cameraparameters.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\NativeUtils\icp.cpp">
