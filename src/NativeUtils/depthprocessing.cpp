@@ -24,7 +24,7 @@
 
 using namespace std;
 
-
+#if 0
 // DELETE ME!!! - i'm in kinectCapture.cpp
 void filterFlyingPixels(int neighbourhoodSize, float thr, int maxNonFittingNeighbours, int w, int h, unsigned short *depth_map)
 {
@@ -2530,3 +2530,6 @@ extern "C" DEPTH_PROCESSING_API void __stdcall deleteMesh(Mesh* mesh)
 		delete[]mesh->vertices;
 }
 
+
+
+#endif

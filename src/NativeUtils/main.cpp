@@ -154,6 +154,52 @@ void savePLY(std::string filename, Mesh &mesh)
 
 }
 
+
+void loadAllFramesInformation(string filename, int &n_maps, unsigned char** depth_maps,
+	unsigned char **depth_colors, int **widths, int **heights, float **intr_params, float **wtransform_params)
+{
+	FILE *f = fopen(filename.c_str(), "rb");
+
+	fread(&n_maps, sizeof(n_maps), 1, f);
+	*widths = new int[n_maps];
+	*heights = new int[n_maps];
+
+	if (n_maps > 0)
+	{
+		fread(*widths, sizeof((*widths)[0]), n_maps, f);
+		fread(*heights, sizeof((*heights)[0]), n_maps, f);
+	}
+
+	int pos_d = 0, pos_c = 0;
+	for (int i = 0; i < n_maps; i++)
+	{
+		pos_d += (*widths)[i] * (*heights)[i] * 2;
+		pos_c += (*widths)[i] * (*heights)[i] * 3;
+	}
+
+	*depth_maps = new unsigned char[pos_d];
+	*depth_colors = new unsigned char[pos_c];
+	pos_c = 0;
+	pos_d = 0;
+
+	for (int i = 0; i < n_maps; i++)
+	{
+		fread(*depth_maps + pos_d, 1, (*widths)[i] * (*heights)[i] * 2, f);
+		fread(*depth_colors + pos_c, 1, (*widths)[i] * (*heights)[i] * 3, f);
+		pos_d += (*widths)[i] * (*heights)[i] * 2;
+		pos_c += (*widths)[i] * (*heights)[i] * 3;
+	}
+
+	*intr_params = new float[7 * n_maps];
+	*wtransform_params = new float[12 * n_maps];
+
+	fread(*intr_params, sizeof((*intr_params)[0]), 7 * n_maps, f);
+	fread(*wtransform_params, sizeof((*wtransform_params)[0]), 12 * n_maps, f);
+
+	fclose(f);
+}
+
+
 //This function here can be used to test the ICP functionality, it aligns the points clouds in "test1.ply" and "test2.ply"
 int main()
 {
@@ -184,12 +230,20 @@ int main()
 		"d:/Projekty/LiveScan3D/dane/frames_info_gitara_3_kinecty_ez_filtra.bin", // 16
 		"d:/Projekty/LiveScan3D/dane/frames_info_gitara_bez filtra_jeden_k.bin", // 17
 	};
+	MeshGenerator mesh_generator;
 	for (int i = 0; i < 18; i++)
 	{
 		printf("%s\n", filenames[i].c_str()); 
-		generateMeshFromDepthMaps(3, depth_maps, depth_colors,
+		int n_maps;
+		loadAllFramesInformation(filenames[i], n_maps, &depth_maps, &depth_colors,
+			&widths, &heights, &intr_params, &wtransform_params);
+		
+		mesh_generator.setBounds(-1.0f, -1.0f, -0.5f, 1.0f, 1.0f, 1.0f);
+		mesh_generator.generateMeshFromDepthMaps(n_maps, depth_maps, depth_colors,
+			widths, heights, intr_params, wtransform_params, &mesh, true, true);
+		/*generateMeshFromDepthMaps(3, depth_maps, depth_colors,
 			widths, heights, intr_params, wtransform_params, &mesh, true, -1.0f, -1.0f,
-			-0.5f, 1.0f, 1.0f, 1.0f, true, filenames[i]);
+			-0.5f, 1.0f, 1.0f, 1.0f, true, filenames[i]);*/
 		//generateMeshFromDepthMaps(1, depth_maps, depth_colors,
 		//	widths, heights, intr_params, wtransform_params, &mesh, true, -500.0f, -500.0f,
 		//	-500.0f, 500.0f, 500.0f, 500.0f, true, filenames[i]);
