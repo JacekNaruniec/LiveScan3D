@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\include\LiveScanClient\bilateralFilter.h" />
     <ClInclude Include="..\include\LiveScanClient\calibration.h" />
     <ClInclude Include="..\include\LiveScanClient\filter.h" />
     <ClInclude Include="..\include\LiveScanClient\frameFileWriterReader.h" />
@@ -35,6 +36,7 @@
     <ClInclude Include="stdafx.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\LiveScanClient\bilateralFilter.cpp" />
     <ClCompile Include="..\src\LiveScanClient\calibration.cpp" />
     <ClCompile Include="..\src\LiveScanClient\filter.cpp" />
     <ClCompile Include="..\src\LiveScanClient\frameFileWriterReader.cpp" />
@@ -144,7 +146,7 @@
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(KINECTSDK20_DIR)\lib\x64;$(SolutionDir)lib</AdditionalLibraryDirectories>
-      <AdditionalDependencies>opencv_world320d.lib;kinect20.lib;libzstd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>winmm.lib;opencv_world320d.lib;kinect20.lib;libzstd.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>NotSet</SubSystem>
     </Link>
   </ItemDefinitionGroup>
@@ -184,7 +186,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>opencv_world320.lib;kinect20.lib;libzstd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>winmm.lib;opencv_world320.lib;kinect20.lib;libzstd.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(KINECTSDK20_DIR)\lib\x64;$(SolutionDir)lib</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>

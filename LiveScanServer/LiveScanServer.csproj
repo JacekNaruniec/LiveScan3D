@@ -34,6 +34,9 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="NAudio">
+      <HintPath>..\NAudio\NAudio.dll</HintPath>
+    </Reference>
     <Reference Include="OpenTK, Version=1.1.0.0, Culture=neutral, PublicKeyToken=bad199fe84eb3df4, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\bin\OpenTK.dll</HintPath>
@@ -52,6 +55,14 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AudioSettings.cs" />
+    <Compile Include="AudioSettingsForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="AudioSettingsForm.Designer.cs">
+      <DependentUpon>AudioSettingsForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="AudioTransferServer.cs" />
     <Compile Include="MainWindowForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -74,6 +85,9 @@
     <Compile Include="TransferSocket.cs" />
     <Compile Include="Utils.cs" />
     <Compile Include="ZSTDDecompressor.cs" />
+    <EmbeddedResource Include="AudioSettingsForm.resx">
+      <DependentUpon>AudioSettingsForm.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="MainWindowForm.resx">
       <DependentUpon>MainWindowForm.cs</DependentUpon>
       <SubType>Designer</SubType>

@@ -251,6 +251,9 @@
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;ICP_DLL_EXPORTS;DEPTH_PROCESSING_DLL_EXPORTS;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <OpenMPSupport>true</OpenMPSupport>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <FloatingPointModel>Fast</FloatingPointModel>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -300,26 +303,36 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\include\NativeUtils\bilateralFilter.h" />
     <ClInclude Include="..\include\NativeUtils\cameraparameters.h" />
     <ClInclude Include="..\include\NativeUtils\colorcorrection.h" />
+    <ClInclude Include="..\include\NativeUtils\depthmaputils.h" />
     <ClInclude Include="..\include\NativeUtils\depthprocessing.h" />
     <ClInclude Include="..\include\NativeUtils\fileutils.h" />
+    <ClInclude Include="..\include\NativeUtils\hsvrgb.h" />
     <ClInclude Include="..\include\NativeUtils\icp.h" />
     <ClInclude Include="..\include\NativeUtils\mesh.h" />
-    <ClInclude Include="..\include\NativeUtils\meshGenerator.h" />
+    <ClInclude Include="..\include\NativeUtils\meshgenerator.h" />
+    <ClInclude Include="..\include\NativeUtils\meshgeneratordata.h" />
     <ClInclude Include="..\include\NativeUtils\pgm.h" />
     <ClInclude Include="..\include\nanoflann.h" />
+    <ClInclude Include="..\include\NativeUtils\point3f.h" />
     <ClInclude Include="..\include\NativeUtils\simplegraphic.h" />
     <ClInclude Include="..\include\NativeUtils\simpleimage.h" />
     <ClInclude Include="..\include\NativeUtils\simplepoint.h" />
     <ClInclude Include="..\include\NativeUtils\simplerect.h" />
+    <ClInclude Include="..\include\NativeUtils\triangleindexes.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\NativeUtils\bilateralFilter.cpp" />
     <ClCompile Include="..\src\NativeUtils\colorcorrection.cpp" />
+    <ClCompile Include="..\src\NativeUtils\depthmaputils.cpp" />
     <ClCompile Include="..\src\NativeUtils\depthprocessing.cpp" />
     <ClCompile Include="..\src\NativeUtils\fileutils.cpp" />
+    <ClCompile Include="..\src\NativeUtils\hsvrgb.cpp" />
     <ClCompile Include="..\src\NativeUtils\icp.cpp" />
     <ClCompile Include="..\src\NativeUtils\main.cpp" />
+    <ClCompile Include="..\src\NativeUtils\mesh.cpp" />
     <ClCompile Include="..\src\NativeUtils\meshGenerator.cpp" />
     <ClCompile Include="..\src\NativeUtils\pgm.cpp" />
     <ClCompile Include="..\src\NativeUtils\simplegraphic.cpp" />

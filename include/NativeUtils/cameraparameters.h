@@ -28,6 +28,13 @@ struct ExtrinsicCameraParameters
 			memcpy(R[i].data(), p + 3 + 3 * i, 3 * sizeof(float));
 	}
 
+	void toFloatP(float *p)
+	{
+		memcpy(p, t.data(), 3 * sizeof(float));
+		for (int i = 0; i < 3; i++)
+			memcpy(p + 3 + 3 * i, R[i].data(), 3 * sizeof(float));
+	}
+
 	void inv()
 	{
 		std::vector<std::vector<float>> Rt(3, std::vector<float>(3));

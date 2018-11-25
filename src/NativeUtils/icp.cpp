@@ -129,12 +129,12 @@ ICP_API float __stdcall ICP(Point3f *verts1, Point3f *verts2, int nVerts1, int n
 
 		RejectOutlierMatches(matched1, matched2, matchDistances, 2.5);
 
-		//error = 0;
-		//for (int i = 0; i < matchDistances.size(); i++)
-		//{
-		//	error += sqrt(matchDistances[i]);
-		//}
-		//error /= matchDistances.size();
+		error = 0;
+		for (int i = 0; i < matchDistances.size(); i++)
+		{
+			error += sqrt(matchDistances[i]);
+		}
+		error /= matchDistances.size();
 		//cout << error << endl;
 
 		cv::Mat matched1MatCv((int)matched1.size(), 3, CV_32F, matched1.data());

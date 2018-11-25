@@ -44,6 +44,7 @@
             this.btSettings = new System.Windows.Forms.Button();
             this.refineWorker = new System.ComponentModel.BackgroundWorker();
             this.lbSeqName = new System.Windows.Forms.Label();
+            this.btAudioSettings = new System.Windows.Forms.Button();
             this.statusStrip1.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -60,7 +61,7 @@
             // 
             // btCalibrate
             // 
-            this.btCalibrate.Location = new System.Drawing.Point(18, 108);
+            this.btCalibrate.Location = new System.Drawing.Point(18, 148);
             this.btCalibrate.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             this.btCalibrate.Name = "btCalibrate";
             this.btCalibrate.Size = new System.Drawing.Size(142, 35);
@@ -71,7 +72,7 @@
             // 
             // btRecord
             // 
-            this.btRecord.Location = new System.Drawing.Point(18, 194);
+            this.btRecord.Location = new System.Drawing.Point(18, 234);
             this.btRecord.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             this.btRecord.Name = "btRecord";
             this.btRecord.Size = new System.Drawing.Size(142, 35);
@@ -96,10 +97,10 @@
             this.statusStrip1.ImageScalingSize = new System.Drawing.Size(24, 24);
             this.statusStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.statusLabel});
-            this.statusStrip1.Location = new System.Drawing.Point(0, 300);
+            this.statusStrip1.Location = new System.Drawing.Point(0, 304);
             this.statusStrip1.Name = "statusStrip1";
             this.statusStrip1.Padding = new System.Windows.Forms.Padding(2, 0, 21, 0);
-            this.statusStrip1.Size = new System.Drawing.Size(516, 22);
+            this.statusStrip1.Size = new System.Drawing.Size(517, 22);
             this.statusStrip1.TabIndex = 6;
             this.statusStrip1.Text = "statusStrip1";
             // 
@@ -126,7 +127,7 @@
             // 
             // btRefineCalib
             // 
-            this.btRefineCalib.Location = new System.Drawing.Point(18, 149);
+            this.btRefineCalib.Location = new System.Drawing.Point(18, 189);
             this.btRefineCalib.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             this.btRefineCalib.Name = "btRefineCalib";
             this.btRefineCalib.Size = new System.Drawing.Size(142, 35);
@@ -153,7 +154,7 @@
             // 
             // btShowLive
             // 
-            this.btShowLive.Location = new System.Drawing.Point(18, 237);
+            this.btShowLive.Location = new System.Drawing.Point(18, 277);
             this.btShowLive.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             this.btShowLive.Name = "btShowLive";
             this.btShowLive.Size = new System.Drawing.Size(142, 35);
@@ -169,7 +170,7 @@
             this.btSettings.Name = "btSettings";
             this.btSettings.Size = new System.Drawing.Size(142, 35);
             this.btSettings.TabIndex = 13;
-            this.btSettings.Text = "Settings";
+            this.btSettings.Text = "Main settings";
             this.btSettings.UseVisualStyleBackColor = true;
             this.btSettings.Click += new System.EventHandler(this.btSettings_Click);
             // 
@@ -188,11 +189,22 @@
             this.lbSeqName.TabIndex = 14;
             this.lbSeqName.Text = "Sequence name:";
             // 
+            // btAudioSettings
+            // 
+            this.btAudioSettings.Location = new System.Drawing.Point(18, 106);
+            this.btAudioSettings.Name = "btAudioSettings";
+            this.btAudioSettings.Size = new System.Drawing.Size(142, 34);
+            this.btAudioSettings.TabIndex = 15;
+            this.btAudioSettings.Text = "Audio settings";
+            this.btAudioSettings.UseVisualStyleBackColor = true;
+            this.btAudioSettings.Click += new System.EventHandler(this.btAudioSettings_Click);
+            // 
             // MainWindowForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(9F, 20F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(516, 322);
+            this.ClientSize = new System.Drawing.Size(517, 326);
+            this.Controls.Add(this.btAudioSettings);
             this.Controls.Add(this.lbSeqName);
             this.Controls.Add(this.btSettings);
             this.Controls.Add(this.btShowLive);
@@ -234,6 +246,7 @@
         private System.ComponentModel.BackgroundWorker refineWorker;
         private System.Windows.Forms.ToolStripStatusLabel statusLabel;
         private System.Windows.Forms.Label lbSeqName;
+        private System.Windows.Forms.Button btAudioSettings;
     }
 }
 

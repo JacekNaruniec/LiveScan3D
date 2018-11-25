@@ -2,7 +2,7 @@
 
 #include <stdio.h>
 #include <vector>
-
+#include "point3f.h"
 #include "nanoflann.h"
 
 #if defined(ICP_DLL_EXPORTS) // inside DLL
@@ -11,10 +11,6 @@
 #   define ICP_API   __declspec(dllimport)
 #endif  
 
-struct Point3f
-{
-	float X, Y, Z;
-};
 //   Copyright (C) 2015  Marek Kowalski (M.Kowalski@ire.pw.edu.pl), Jacek Naruniec (J.Naruniec@ire.pw.edu.pl)
 //   License: MIT Software License   See LICENSE.txt for the full license.
 

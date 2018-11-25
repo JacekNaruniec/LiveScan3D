@@ -173,6 +173,7 @@ void KinectCapture::filterFlyingPixels(int neighbourhoodSize, float thr, int max
 		pDepth[indexesToRemove[i]] = 0;
 }
 
+
 bool KinectCapture::AcquireFrame()
 {
 	if (!bInitialized)
@@ -188,16 +189,19 @@ bool KinectCapture::AcquireFrame()
 	{
 		return false;
 	}
-	
+
 	GetDepthFrame(pMultiFrame);
 	GetColorFrame(pMultiFrame);
-	
+
 	GetBodyFrame(pMultiFrame);
 	GetBodyIndexFrame(pMultiFrame);
 
 	if (bFilterFlyingPixels)
+	{
 		filterFlyingPixels(iFPNeighbourhoodSize, (float)iFPThreshold, iFPMaxNonFittingNeighbours);
-		
+		filter.bilateralFilter(pDepth, nDepthFrameWidth, nDepthFrameHeight);
+	}
+
 	SafeRelease(pMultiFrame);
 
 	return true;

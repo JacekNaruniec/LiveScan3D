@@ -397,10 +397,10 @@ namespace KinectServer
             GL.BindBuffer(BufferTarget.ArrayBuffer, VBOHandle);
             // Tell OpenGL to discard old VBO when done drawing it and reserve memory _now_ for a new buffer.
             // without this, GL would wait until draw operations on old VBO are complete before writing to it
-            GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(VertexC4ubV3f.SizeInBytes * (PointCount + 2 * LineCount)), IntPtr.Zero, BufferUsageHint.StreamDraw);
+            GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(VertexC4ubV3f.SizeInBytes * (PointCount + 2 * LineCount)), IntPtr.Zero, BufferUsageHint.DynamicDraw);
             
             // Fill newly allocated buffer
-            GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(VertexC4ubV3f.SizeInBytes * (PointCount + 2 * LineCount)), VBO, BufferUsageHint.StreamDraw);
+            GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(VertexC4ubV3f.SizeInBytes * (PointCount + 2 * LineCount)), VBO, BufferUsageHint.DynamicDraw);
 
             if (TriangleCount == 0 && PointCount !=0)
                 GL.DrawArrays(PrimitiveType.Points, 0, PointCount);
@@ -408,9 +408,10 @@ namespace KinectServer
             GL.DrawArrays(PrimitiveType.Lines, PointCount, 2 * LineCount);
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, ElementBufferHandle);
 
+            GL.BufferData(BufferTarget.ElementArrayBuffer, (IntPtr)(4 * TriangleCount * 3), IntPtr.Zero, BufferUsageHint.StreamDraw);
             GL.BufferData(BufferTarget.ElementArrayBuffer, (IntPtr)(4 * TriangleCount * 3), IBO, BufferUsageHint.StreamDraw);
             GL.DrawElements(PrimitiveType.Triangles, TriangleCount * 3, DrawElementsType.UnsignedInt, 0);
-
+           
             GL.PopMatrix();
 
             SwapBuffers();

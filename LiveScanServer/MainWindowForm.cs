@@ -44,6 +44,8 @@ namespace KinectServer
 
         KinectServer oServer;
         TransferServer oTransferServer;
+        AudioTransferServer oAudioTransferServer;
+
 
         object lAllVerticesLock = new object(); 
 
@@ -67,6 +69,8 @@ namespace KinectServer
         System.Timers.Timer oStatusBarTimer = new System.Timers.Timer();
 
         KinectSettings oSettings = new KinectSettings();
+        AudioSettings oAudioSettings = new AudioSettings(); 
+
         //The live view window class
         OpenGLWindow oOpenGLWindow;
 
@@ -87,6 +91,7 @@ namespace KinectServer
             oServer = new KinectServer(oSettings);
             oServer.eSocketListChanged += new SocketListChangedHandler(UpdateListView);
             oTransferServer = new TransferServer();
+            oAudioTransferServer = new AudioTransferServer(oAudioSettings);
 
             InitializeComponent();
         }
@@ -102,6 +107,7 @@ namespace KinectServer
 
             oServer.StopServer();
             oTransferServer.StopServer();
+            oAudioTransferServer.StopServer();
         }
 
         //Starts the server
@@ -113,12 +119,14 @@ namespace KinectServer
             {
                 oServer.StartServer();
                 oTransferServer.StartServer();
+                oAudioTransferServer.StartServer(); 
                 btStart.Text = "Stop server";
             }
             else
             {
                 oServer.StopServer();
                 oTransferServer.StopServer();
+                oAudioTransferServer.StopServer(); 
                 btStart.Text = "Start server";
             }
         }
@@ -240,6 +248,7 @@ namespace KinectServer
             List<List<Body>> lFramesBody = new List<List<Body>>();
             VertexC4ubV3f[] lFramesVerts = new VertexC4ubV3f[0];
             int[] lFramesTriangles = new int[0];
+            MeshChunks meshChunks = new MeshChunks();
             BackgroundWorker worker = (BackgroundWorker)sender;
             while (!worker.CancellationPending)
             {
@@ -248,11 +257,21 @@ namespace KinectServer
                 //oServer.RequestLastFrames();
                 oServer.CopyLatestFrames();
                 oServer.RequestLastFrames();
+                //Stopwatch sw = new Stopwatch();
+                //sw.Start();
                 oServer.CorrectRadialDistortionsForDepthMaps();
-                oServer.GenerateAndGetMesh(out lFramesVerts, lFramesBody, out lFramesTriangles);
+                //sw.Stop();
+                oServer.GenerateAndGetMesh(out lFramesVerts, lFramesBody, out lFramesTriangles, out meshChunks);
+                /*
+                using (System.IO.StreamWriter file =
+                         new System.IO.StreamWriter(@"d:\Projekty\LiveScan3D\times.txt"))
+                {
+                    file.WriteLine(sw.ElapsedMilliseconds);
+                }*/
+
 
                 //Update the vertex and color lists that are common between this class and the OpenGLWindow.
-                
+
                 lock (lAllVerticesLock)
                 {
                     //lAllVertices.Clear();
@@ -296,13 +315,13 @@ namespace KinectServer
                     oOpenGLWindow.CloudUpdateTick();
                 }
 
-                oTransferServer.updateMesh(lAllVertices, lAllTriangles);
+                oTransferServer.updateMesh(lAllVertices, lAllTriangles, meshChunks);
             }
         }
-        
+
         //Performs the ICP based pose refinement.
         private void refineWorker_DoWork(object sender, DoWorkEventArgs e)
-        {                               
+        {
             if (oServer.bAllCalibrated == false)
             {
                 SetStatusBarOnTimer("Not all of the devices are calibrated.", 5000);
@@ -314,7 +333,7 @@ namespace KinectServer
             List<List<VertexC4ubV3f>> lAllVerticesWithColors = new List<List<VertexC4ubV3f>>();
             oServer.GetLatestFrameVerticesOnly(lAllVerticesWithColors);
 
-            for (int i=0; i< lAllVerticesWithColors.Count; i++)
+            for (int i = 0; i < lAllVerticesWithColors.Count; i++)
             {
                 lAllFrameVertices.Add(new List<float>(lAllVerticesWithColors[i].Count * 3));
                 foreach (VertexC4ubV3f v in lAllVerticesWithColors[i])
@@ -344,7 +363,7 @@ namespace KinectServer
 
             //Use ICP to refine the sensor poses.
             //This part is explained in more detail in our article (name on top of this file).
-            
+
             for (int refineIter = 0; refineIter < oSettings.nNumRefineIters; refineIter++)
             {
                 for (int i = 0; i < lAllFrameVertices.Count; i++)
@@ -401,12 +420,20 @@ namespace KinectServer
                         {
                             tempR[j, k] += Rs[i][l * 3 + j] * worldTransforms[i].R[l, k];
                         }
+                    }
+                }
 
+                for (int j = 0; j < 3; j++)
+                {
+                    for (int k = 0; k < 3; k++)
+                    {
                         worldTransforms[i].R[j, k] = tempR[j, k];
                         cameraPoses[i].R[j, k] = tempR[j, k];
                     }
-                }                    
+                }
+
             }
+
 
             oServer.lWorldTransforms = worldTransforms;
             oServer.lCameraPoses = cameraPoses;
@@ -518,6 +545,22 @@ namespace KinectServer
                 listBoxItems.Add(socketList[i].sSocketState);
             if (!lClientListBox.IsDisposed)
                 this.BeginInvoke(new Action(() => lClientListBox.DataSource = listBoxItems));
+        }
+
+        private void btAudioSettings_Click(object sender, EventArgs e)
+        {
+            AudioSettingsForm form = new AudioSettingsForm(oAudioSettings);
+            
+            DialogResult res = form.ShowDialog();
+
+            if (res==DialogResult.OK)
+            {
+                if (oAudioTransferServer.bServerRunning)
+                {
+                    oAudioTransferServer.StopServer();
+                    oAudioTransferServer.StartServer(); 
+                }
+            }
         }
     }
 }

@@ -3,7 +3,7 @@
 
 using namespace std; 
 
-ColorCorrectionParams getColorCorrectionTransform(std::vector<unsigned char> &RGB_source, std::vector<unsigned char> &RGB_dst, ColorSpace color_space)
+ColorCorrectionParams getColorCorrectionTransformForPoints(std::vector<unsigned char> &RGB_source, std::vector<unsigned char> &RGB_dst, ColorSpace color_space)
 {
 	ColorCorrectionParams transform;
 
@@ -13,9 +13,24 @@ ColorCorrectionParams getColorCorrectionTransform(std::vector<unsigned char> &RG
 	transform.color_space = color_space;
 
 	size_t n_elements = RGB_source.size() / 3; 
+
+	if (color_space == CS_YUV)
+	{
+		double sum_diff = 0;
+		for (int i = 0; i < n_elements; i++)
+		{
+			double Y1, U1, V1, Y2, U2, V2;
+			RGBToYUV(RGB_source[i * 3], RGB_source[i * 3 + 1], RGB_source[i * 3 + 2], Y1, U1, V1);
+			RGBToYUV(RGB_dst[i * 3], RGB_dst[i * 3 + 1], RGB_dst[i * 3 + 2], Y2, U2, V2);
+			sum_diff += Y2 - Y1;
+		}
+		transform.Y_diff = sum_diff / n_elements;
+		return transform;
+	}
+
+
 	vector<double> values1(RGB_source.size());
 	vector<double> values2(RGB_source.size());
-
 
 	for (size_t i=0; i<RGB_source.size() / 3; i++)
 	{
@@ -98,6 +113,21 @@ ColorCorrectionParams getColorCorrectionTransform(std::vector<unsigned char> &RG
 }
 
 
+
+void RGBToYUV(const unsigned char R, const unsigned char G, const unsigned char B, double &Y, double &U, double &V)
+{
+	Y = 0.299 * R + 0.587 * G + 0.114 * B;
+	U = (B - Y)*0.565;
+	V = (R - Y)*0.713;
+}
+
+void YUVtoRGB(const double Y, const double U, const double V, unsigned char &R, unsigned char &G, unsigned char &B)
+{
+	R = (unsigned char)max(0.0, min(255.0, (Y + 1.403 * V)));
+	G = (unsigned char)max(0.0, min(255.0, (Y - 0.344 * U - 0.714 * V)));
+	B = (unsigned char)max(0.0, min(255.0, (Y + 1.770 * U)));
+}
+
 // equations from the article by E. Reinhart et al. "Color Transfer between Images", 2001
 void convertRGBToLAlphaBeta(const unsigned char R, const unsigned char G, const unsigned char B, double &l, double &alpha, double &beta)
 {
@@ -133,16 +163,64 @@ void convertLAlphaBetaToRGB(const double l, const double alpha, const double bet
 	B = static_cast<unsigned char>(max(0.0, min(255.0, Bp)));
 }
 
-
-void applyColorCorrection(vector<unsigned char> &RGB, ColorCorrectionParams &color_correction_coeffs)
+void applyColorCorrectionRGB(RGB* rgb, size_t n_elements, ColorCorrectionParams &color_correction_coeffs)
 {
-	size_t n_elements = RGB.size() / 3;
 
 	for (size_t i = 0; i < n_elements; i++)
 	{
-		unsigned char R = RGB[i * 3];
-		unsigned char G = RGB[i * 3 + 1];
-		unsigned char B = RGB[i * 3 + 2];
+		unsigned char R = rgb[i].R;
+		unsigned char G = rgb[i].G;
+		unsigned char B = rgb[i].B;
+
+		double a, b, c;
+
+		if (color_correction_coeffs.color_space == CS_YUV)
+		{
+			double Y, U, V;
+			RGBToYUV(R, G, B, Y, U, V);
+			Y -= color_correction_coeffs.Y_diff;
+			YUVtoRGB(Y, U, V, R, G, B);
+			rgb[i].R = R;
+			rgb[i].G = G;
+			rgb[i].B = B;
+			continue; 
+		}
+
+		if (color_correction_coeffs.color_space == CS_LALPHABETA)
+			convertRGBToLAlphaBeta(R, G, B, a, b, c);
+		else
+		{
+			a = R; b = G; c = B;
+		}
+
+		a = (a - color_correction_coeffs.mean_a2) * color_correction_coeffs.std_scale_a + color_correction_coeffs.mean_a1;
+		b = (b - color_correction_coeffs.mean_b2) * color_correction_coeffs.std_scale_b + color_correction_coeffs.mean_b1;
+		c = (c - color_correction_coeffs.mean_c2) * color_correction_coeffs.std_scale_c + color_correction_coeffs.mean_c1;
+
+		if (color_correction_coeffs.color_space == CS_LALPHABETA)
+			convertLAlphaBetaToRGB(a, b, c, R, G, B);
+		else
+		{
+			R = (unsigned char)min(255, max(0, (int)a));
+			G = (unsigned char)min(255, max(0, (int)b));
+			B = (unsigned char)min(255, max(0, (int)c));
+		}
+		rgb[i].R = R;
+		rgb[i].G = G;
+		rgb[i].B = B;
+	}
+}
+
+
+void applyColorCorrection(vector<unsigned char> &rgb, ColorCorrectionParams &color_correction_coeffs)
+{
+	size_t n_elements = rgb.size() / 3;
+
+	for (size_t i = 0; i < n_elements; i++)
+	{
+		unsigned char R = rgb[i * 3];
+		unsigned char G = rgb[i * 3 + 1];
+		unsigned char B = rgb[i * 3 + 2];
 
 		double a, b, c;
 
@@ -163,9 +241,9 @@ void applyColorCorrection(vector<unsigned char> &RGB, ColorCorrectionParams &col
 			G = (unsigned char)min(255, max(0, (int)b));
 			B = (unsigned char)min(255, max(0, (int)c));
 		}
-		RGB[i * 3] = R;
-		RGB[i * 3 + 1] = G;
-		RGB[i * 3 + 2] = B;
+		rgb[i * 3] = R;
+		rgb[i * 3 + 1] = G;
+		rgb[i * 3 + 2] = B;
 	}
 }
 

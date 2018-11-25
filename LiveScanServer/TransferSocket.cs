@@ -47,19 +47,27 @@ namespace KinectServer
             oSocket.GetStream().Write(BitConverter.GetBytes(val), 0, 4);
         }
 
+        public void SendFloatArray(float[] data)
+        {
+            byte[] buffer = new byte[sizeof(float) * data.Count()];
+            Buffer.BlockCopy(data, 0, buffer, 0, sizeof(float) * data.Count());
+            WriteInt(data.Count() * 4);
+            oSocket.GetStream().Write(buffer, 0, buffer.Count());
+        }
+
         public void SendFrame(MeshChunks meshChunks)
         {
             //VertexC4ubV3s[] sVertices = Array.ConvertAll(meshChunks.lVertices.ToArray(), x => x.toVertexC4ubV3s());
-            VertexC4ubV3f[] sVertices = meshChunks.lVertices.ToArray();
+            VertexC4ubV3f[] sVertices = meshChunks.lVertices;
 
-            int nVerticesToSend = meshChunks.lVertices.Count;
-            int nTrianglesToSend = meshChunks.lTriangles.Count / 3;
+            int nVerticesToSend = meshChunks.lVertices.Count();
+            int nTrianglesToSend = meshChunks.lTriangles.Count() / 3;
             int nChunks = meshChunks.trianglesChunkSizes.Count(); 
 
             byte[] colorsArray = new byte[sizeof(byte) * 3 * nVerticesToSend];
             float[] verticesArray = new float[sizeof(float) * 3 * nVerticesToSend];
 
-            int[] triangles = meshChunks.lTriangles.ToArray();
+            int[] triangles = meshChunks.lTriangles;
             
             int pos1 = 0;
             int pos2 = 0;

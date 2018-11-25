@@ -332,6 +332,24 @@ namespace KinectServer
         public static int SizeInBytes = 16;
     }
 
+    public class MeshChunks
+    {
+        public VertexC4ubV3f[] lVertices;
+        public int[] lTriangles;
+        public int[] verticesChunkSizes;
+        public int[] trianglesChunkSizes;
+    }
+
+    public struct MeshChunksC
+    {
+        public IntPtr vertices;
+        public IntPtr triangles;
+        public IntPtr verticesChunkSizes;
+        public IntPtr trianglesChunkSizes;
+        public int nChunks;
+    };
+
+
     public struct Mesh
     {
         public int nVertices;

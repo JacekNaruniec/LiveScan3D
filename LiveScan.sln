@@ -36,8 +36,8 @@ Global
 		{78422B2C-0EF1-4A28-A40E-2A7C4A9204B1}.Release|x64.Build.0 = Release|Any CPU
 		{973EE923-B423-4BCD-AA08-B03DA40CB51F}.Debug NativeUtils as exe|x64.ActiveCfg = Debug|x64
 		{973EE923-B423-4BCD-AA08-B03DA40CB51F}.Debug NativeUtils as exe|x64.Build.0 = Debug|x64
-		{973EE923-B423-4BCD-AA08-B03DA40CB51F}.Debug|x64.ActiveCfg = Debug DLL|x64
-		{973EE923-B423-4BCD-AA08-B03DA40CB51F}.Debug|x64.Build.0 = Debug DLL|x64
+		{973EE923-B423-4BCD-AA08-B03DA40CB51F}.Debug|x64.ActiveCfg = Release DLL|x64
+		{973EE923-B423-4BCD-AA08-B03DA40CB51F}.Debug|x64.Build.0 = Release DLL|x64
 		{973EE923-B423-4BCD-AA08-B03DA40CB51F}.Release NativeUtils as exe|x64.ActiveCfg = Release|x64
 		{973EE923-B423-4BCD-AA08-B03DA40CB51F}.Release NativeUtils as exe|x64.Build.0 = Release|x64
 		{973EE923-B423-4BCD-AA08-B03DA40CB51F}.Release|x64.ActiveCfg = Release DLL|x64

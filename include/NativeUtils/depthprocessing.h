@@ -27,50 +27,36 @@
 //        year={2015},
 //    }
 
-
-
-struct PointProjection
+/*
+struct MeshChunks
 {
-	int x, y;
-	unsigned short d;
-	int index;
+	VertexC4ubV3f *vertices;
+	int *triangles;
+	int *vertices_chunk_sizes;
+	int *triangles_chunk_sizes;
 };
 
+extern "C" DEPTH_PROCESSING_API void __stdcall formMeshChunks(Mesh &mesh, MeshChunks *mesh_chunks);
+*/
 
-
-struct Connection
-{
-	int point1_index; 
-	int point2_index; 
-	unsigned short depth1, depth2; 
-};
-
-struct VerticesWithDepthColorMaps
-{
-	std::vector<Point3f> vertices;
-	std::vector<unsigned char> colors;
-	std::vector<int> depth_to_vertices_map;
-	std::vector<int> vertices_to_depth_map;
-	std::vector<bool> point_assigned;
-	std::vector<unsigned short> depth_map;
-	std::vector<unsigned char> confidence_map;
-	std::vector<unsigned char> colors_map;
-};
-
-
-void RotatePoint(Point3f &point, std::vector<std::vector<float>> &R);
-void writeDepthImage(std::vector<unsigned short> &depth_image, int w, int h, std::string filename);
-std::vector<TriangleIndexes> generateTrianglesForStiches(std::vector<VerticesWithDepthColorMaps> &vertices_with_maps, int *heights, int *widths, std::vector<WorldTransformation> &world_transforms,
-	std::vector<IntrinsicCameraParameters> &intrinsic_params);
-
-
-extern "C" DEPTH_PROCESSING_API void __stdcall generateVerticesFromDepthMap(unsigned char* depth_maps,
+extern "C" DEPTH_PROCESSING_API void __stdcall generateVerticesFromDepthMap(__int64 *mesh_generator_handle, unsigned char* depth_maps,
 	unsigned char *depth_colors, int *widths, int *heights, float *intr_params, float *wtransform_params, Mesh *out_mesh,
 	float minX, float minY, float minZ, float maxX, float maxY, float maxZ, int depth_map_index);
-
-
-extern "C" DEPTH_PROCESSING_API void __stdcall generateMeshFromDepthMaps(int n_maps, unsigned char* depth_maps,
+extern "C" DEPTH_PROCESSING_API void __stdcall generateMeshFromDepthMaps(__int64 *mesh_generator_handle, int n_maps, unsigned char* depth_maps,
 	unsigned char *depth_colors, int *widths, int *heights, float *intr_params, float *wtransform_params, Mesh *out_mesh, bool bcolor_transfer,
-	float minX, float minY, float minZ, float maxX, float maxY, float maxZ, bool bgenerate_triangles, std::string test_filename = "");
+	float minX, float minY, float minZ, float maxX, float maxY, float maxZ, bool bgenerate_triangles);
 extern "C" DEPTH_PROCESSING_API void __stdcall depthMapAndColorSetRadialCorrection(int n_maps, unsigned char* depth_maps, unsigned char *depth_colors, int *widths, int *heights, float *intr_params);
+
+extern "C" DEPTH_PROCESSING_API void __stdcall createMeshChunks(__int64 *mesh_generator_handle, Mesh *mesh, MeshChunks *mesh_chunks);
+
+extern "C" DEPTH_PROCESSING_API void __stdcall deleteMeshChunks(MeshChunks*);
+
 extern "C" DEPTH_PROCESSING_API void __stdcall deleteMesh(Mesh*);
+extern "C" DEPTH_PROCESSING_API Mesh* __stdcall createMesh();
+
+extern "C" DEPTH_PROCESSING_API __int64* __stdcall createMeshGenerator();
+extern "C" DEPTH_PROCESSING_API void __stdcall deleteMeshGenerator(__int64* ptr);
+
+
+void storeAllFramesInformation(std::string filename, int n_maps, unsigned char* depth_maps,
+	unsigned char *depth_colors, int *widths, int *heights, float *intr_params, float *wtransform_params);

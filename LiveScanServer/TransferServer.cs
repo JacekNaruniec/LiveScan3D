@@ -11,17 +11,11 @@ using System.Diagnostics;
 
 namespace KinectServer
 {
-    public class MeshChunks
-    {
-        public List<VertexC4ubV3f> lVertices;
-        public List<int> lTriangles;
-        public List<int> verticesChunkSizes;
-        public List<int> trianglesChunkSizes; 
-    }
     public class TransferServer
     {
         List<VertexC4ubV3f> lVerticesCloned = new List<VertexC4ubV3f>();
         List<int> lTrianglesCloned = new List<int>();
+        MeshChunks meshChunksCloned = new MeshChunks();
 
         object meshCopyLock = new object();
 
@@ -84,14 +78,13 @@ namespace KinectServer
             }
         }
 
-        //public void setN
-
-        public void updateMesh(VertexC4ubV3f[] lVertices, int[] lTriangles)
+        public void updateMesh(VertexC4ubV3f[] lVertices, int[] lTriangles, MeshChunks meshChunks)
         {
             lock (meshCopyLock)
             {
                 lVerticesCloned = new List<VertexC4ubV3f>(lVertices);
                 lTrianglesCloned = new List<int>(lTriangles);
+                meshChunksCloned = meshChunks;
             }
         }
 
@@ -141,19 +134,22 @@ namespace KinectServer
 
                                 if (lTrianglesClonedLocal.Count > 0)
                                 {
-                                    MeshChunks meshChunks = formMeshChunks(lVerticesClonedLocal, lTrianglesClonedLocal);
-                                    Stopwatch sw = new Stopwatch();
-                                    sw.Start(); 
-                                    lClientSockets[i].SendFrame(meshChunks);
-                                    sw.Stop(); 
-                                    Console.WriteLine("Sending elapsed={0}", sw.ElapsedMilliseconds);
-
+                                    //Stopwatch sw = new Stopwatch();
+                                    //sw.Start();
+                                    //MeshChunks meshChunks = formMeshChunks(lVerticesClonedLocal, lTrianglesClonedLocal);
+                                    //sw.Stop();
+                                    /*using (System.IO.StreamWriter file =
+                                     new System.IO.StreamWriter(@"d:\Projekty\LiveScan3D\times.txt"))
+                                    {
+                                                file.WriteLine(sw.ElapsedMilliseconds);
+                                    }*/
+                                    // Console.WriteLine("Sending elapsed={0}", sw.ElapsedMilliseconds);
+                                    lClientSockets[i].SendFrame(meshChunksCloned);
                                 }
                                 else if (lVerticesClonedLocal.Count > 0)
                                 {
-                                    MeshChunks meshChunks = formVerticesChunks(lVerticesClonedLocal);
-                                    lClientSockets[i].SendFrame(meshChunks);
-
+                                    //MeshChunks meshChunks = formVerticesChunks(lVerticesClonedLocal);
+                                    lClientSockets[i].SendFrame(meshChunksCloned);
                                 }
                             }
 
@@ -192,10 +188,10 @@ namespace KinectServer
                 currentVertex += size; 
             }
 
-            ret.lTriangles = new List<int>();
-            ret.lVertices = new List<VertexC4ubV3f>(lVertices);
-            ret.trianglesChunkSizes = trianglesInChunks;
-            ret.verticesChunkSizes = verticesInChunks;
+            ret.lTriangles = new int[0];
+            ret.lVertices = lVertices.ToArray();
+            ret.trianglesChunkSizes = trianglesInChunks.ToArray();
+            ret.verticesChunkSizes = verticesInChunks.ToArray();
             return ret;
         }
 
@@ -205,6 +201,7 @@ namespace KinectServer
             int chunkSizeLimit = 65000 - 3;
 
             MeshChunks ret = new MeshChunks();
+
             int nVertices = lVertices.Count();
             int nTriangles = lTriangles.Count() / 3;
             List<int> trianglesInChunks = new List<int>();
@@ -247,7 +244,7 @@ namespace KinectServer
                 {
                     currentChunkIndex++;
                     verticesInChunks.Add(verticesInCurrentChunk);
-                    trianglesInChunks.Add((t - trianglesChunkStart) / 3);
+                    trianglesInChunks.Add((t - trianglesChunkStart + 1) / 3);
                     verticesInCurrentChunk = 0;
                     trianglesChunkStart = t;
                 }
@@ -259,10 +256,10 @@ namespace KinectServer
                 trianglesInChunks.Add((nTriangles * 3 - trianglesChunkStart) / 3);
             }
 
-            ret.lTriangles = new List<int>(newTriangles);
-            ret.lVertices = new List<VertexC4ubV3f>(SubArray(newVertices, 0, currentVertex));
-            ret.trianglesChunkSizes = trianglesInChunks;
-            ret.verticesChunkSizes = verticesInChunks;
+            ret.lTriangles = newTriangles;
+            ret.lVertices = SubArray(newVertices, 0, currentVertex);
+            ret.trianglesChunkSizes = trianglesInChunks.ToArray();
+            ret.verticesChunkSizes = verticesInChunks.ToArray();
 
             sw.Stop();
 

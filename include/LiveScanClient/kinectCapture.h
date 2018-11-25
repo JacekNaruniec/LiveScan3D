@@ -18,6 +18,7 @@
 #include "ICapture.h"
 #include "Kinect.h"
 #include "utils.h"
+#include "bilateralFilter.h"
 
 class KinectCapture : public ICapture
 {
@@ -35,6 +36,7 @@ private:
 	ICoordinateMapper* pCoordinateMapper;
 	IKinectSensor* pKinectSensor;
 	IMultiSourceFrameReader* pMultiSourceFrameReader;
+	BilateralFilter filter; 
 
 	void filterFlyingPixels(int neighbourhoodSize, float thr, int maxNonFittingNeighbours);
 	void GetDepthFrame(IMultiSourceFrame* pMultiFrame);
